@@ -15,26 +15,28 @@ export function useListAllGames() {
 }
 
 export function useListOpenGames() {
-  const { actor, isFetching } = useActor();
+  const { actor } = useActor();
   return useQuery({
     queryKey: ["openGames"],
     queryFn: async () => {
       if (!actor) return [];
       return actor.listOpenGames();
     },
-    enabled: !!actor && !isFetching,
+    enabled: !!actor,
+    staleTime: 30_000,
   });
 }
 
 export function useGetGame(gameId: bigint | null) {
-  const { actor, isFetching } = useActor();
+  const { actor } = useActor();
   return useQuery({
     queryKey: ["game", gameId?.toString()],
     queryFn: async () => {
       if (!actor || gameId === null) throw new Error("No actor or gameId");
       return actor.getGame(gameId);
     },
-    enabled: !!actor && !isFetching && gameId !== null,
+    enabled: !!actor && gameId !== null,
+    staleTime: 30_000,
   });
 }
 

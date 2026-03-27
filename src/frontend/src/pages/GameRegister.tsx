@@ -292,11 +292,12 @@ export default function GameRegisterPage() {
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <div className="flex items-center gap-2">
-            <Shield className="w-5 h-5 text-orange-glow" fill="currentColor" />
-            <span className="font-display text-sm font-bold">
-              CVRESPORTSOFF
-            </span>
+          <div className="flex items-center">
+            <img
+              src="/assets/uploads/file_0000000036c871fa907a38c9391d7ff1-019d2d6c-afb4-74ed-9daa-5e79002c5aee-1.png"
+              alt="CVR eSports Logo"
+              className="h-9 w-auto object-contain"
+            />
           </div>
         </div>
       </header>
