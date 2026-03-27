@@ -187,6 +187,41 @@
   }
 }
 
+/* ── Animated Background Orbs ──────────────────────────────────────────── */
+@keyframes orbFloat1 {
+  0%,
+  100% {
+    transform: translate(0%, 0%) scale(1);
+  }
+  33% {
+    transform: translate(8%, -12%) scale(1.1);
+  }
+  66% {
+    transform: translate(-5%, 8%) scale(0.95);
+  }
+}
+@keyframes orbFloat2 {
+  0%,
+  100% {
+    transform: translate(0%, 0%) scale(1);
+  }
+  33% {
+    transform: translate(-10%, 6%) scale(1.08);
+  }
+  66% {
+    transform: translate(12%, -8%) scale(0.92);
+  }
+}
+@keyframes orbFloat3 {
+  0%,
+  100% {
+    transform: translate(0%, 0%) scale(1);
+  }
+  50% {
+    transform: translate(6%, 10%) scale(1.05);
+  }
+}
+
 /* ── Floating Battlefield Elements ─────────────────────────────────────── */
 @media (prefers-reduced-motion: no-preference) {
   @keyframes floatDrift1 {

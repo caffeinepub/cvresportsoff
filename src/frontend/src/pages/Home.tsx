@@ -178,7 +178,61 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen flex flex-col">
+      {/* Animated Background */}
+      <div className="fixed inset-0 -z-10 overflow-hidden bg-background">
+        <div
+          style={{
+            position: "absolute",
+            top: "-10%",
+            left: "-10%",
+            width: "600px",
+            height: "600px",
+            background:
+              "radial-gradient(circle, oklch(0.65 0.22 40 / 0.18) 0%, transparent 70%)",
+            filter: "blur(40px)",
+            animation: "orbFloat1 28s ease-in-out infinite",
+            willChange: "transform",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            bottom: "-10%",
+            right: "-10%",
+            width: "500px",
+            height: "500px",
+            background:
+              "radial-gradient(circle, oklch(0.78 0.18 195 / 0.15) 0%, transparent 70%)",
+            filter: "blur(40px)",
+            animation: "orbFloat2 22s ease-in-out infinite 4s",
+            willChange: "transform",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            top: "40%",
+            right: "15%",
+            width: "400px",
+            height: "400px",
+            background:
+              "radial-gradient(circle, oklch(0.65 0.22 40 / 0.10) 0%, transparent 70%)",
+            filter: "blur(50px)",
+            animation: "orbFloat3 32s ease-in-out infinite 8s",
+            willChange: "transform",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            backgroundImage:
+              "linear-gradient(oklch(0.78 0.18 195 / 0.04) 1px, transparent 1px), linear-gradient(90deg, oklch(0.78 0.18 195 / 0.04) 1px, transparent 1px)",
+            backgroundSize: "60px 60px",
+          }}
+        />
+      </div>
       {/* Header */}
       <header
         className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b border-border/50"
