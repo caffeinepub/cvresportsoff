@@ -68,7 +68,7 @@ import {
 } from "../hooks/useQueries";
 
 const getAdminPassword = () =>
-  localStorage.getItem("cvr_admin_password") || "CVR@esports2026";
+  localStorage.getItem("cvr_admin_password") || "000";
 
 const EMPTY_GAME: Omit<GameTile, "id"> = {
   title: "",
