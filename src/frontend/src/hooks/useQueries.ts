@@ -2,6 +2,18 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { GameTile, Registration, StripeConfiguration } from "../backend";
 import { useActor } from "./useActor";
 
+export function useListAllGames() {
+  const { actor, isFetching } = useActor();
+  return useQuery({
+    queryKey: ["allGames"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.listAllGames();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
 export function useListOpenGames() {
   const { actor, isFetching } = useActor();
   return useQuery({
@@ -70,7 +82,10 @@ export function useCreateGame() {
       if (!actor) throw new Error("No actor");
       return actor.createGame(game);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["openGames"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["openGames"] });
+      qc.invalidateQueries({ queryKey: ["allGames"] });
+    },
   });
 }
 
@@ -82,7 +97,10 @@ export function useUpdateGame() {
       if (!actor) throw new Error("No actor");
       return actor.updateGame(game);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["openGames"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["openGames"] });
+      qc.invalidateQueries({ queryKey: ["allGames"] });
+    },
   });
 }
 
@@ -94,7 +112,10 @@ export function useDeleteGame() {
       if (!actor) throw new Error("No actor");
       return actor.deleteGame(gameId);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["openGames"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["openGames"] });
+      qc.invalidateQueries({ queryKey: ["allGames"] });
+    },
   });
 }
 

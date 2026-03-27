@@ -59,6 +59,7 @@ import {
   useGetGameRegistrations,
   useIsAdmin,
   useIsStripeConfigured,
+  useListAllGames,
   useListOpenGames,
   useSetStripeConfiguration,
   useUpdateGame,
@@ -650,7 +651,7 @@ export default function AdminPage() {
   const navigate = useNavigate();
   const { identity, login, loginStatus, clear } = useInternetIdentity();
   const { isLoading: adminLoading } = useIsAdmin();
-  const { data: games, isLoading: gamesLoading } = useListOpenGames();
+  const { data: games, isLoading: gamesLoading } = useListAllGames();
   const { data: stripeConfigured } = useIsStripeConfigured();
 
   const createGame = useCreateGame();

@@ -111,33 +111,8 @@ actor {
     };
   };
 
-  // User Profile Management
-  public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
-    if (not (Authorization.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can access profiles");
-    };
-    userProfiles.get(caller);
-  };
-
-  public query ({ caller }) func getUserProfile(user : Principal) : async ?UserProfile {
-    if (caller != user and not Authorization.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Can only view your own profile");
-    };
-    userProfiles.get(user);
-  };
-
-  public shared ({ caller }) func saveCallerUserProfile(profile : UserProfile) : async () {
-    if (not (Authorization.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can save profiles");
-    };
-    userProfiles.add(caller, profile);
-  };
-
-  // Game Management (Admin)
-  public shared ({ caller }) func createGame(game : GameTile) : async Nat {
-    if (not (Authorization.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can create games");
-    };
+  // Game Management (open to all callers — security enforced by frontend password)
+  public shared func createGame(game : GameTile) : async Nat {
     let newGame : GameTile = {
       game with
       id = nextGameId;
@@ -147,20 +122,14 @@ actor {
     newGame.id;
   };
 
-  public shared ({ caller }) func updateGame(game : GameTile) : async () {
-    if (not (Authorization.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can update games");
-    };
+  public shared func updateGame(game : GameTile) : async () {
     if (not gameTiles.containsKey(game.id)) {
       Runtime.trap("Game not found");
     };
     gameTiles.add(game.id, game);
   };
 
-  public shared ({ caller }) func deleteGame(gameId : Nat) : async () {
-    if (not (Authorization.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can delete games");
-    };
+  public shared func deleteGame(gameId : Nat) : async () {
     if (not gameTiles.containsKey(gameId)) {
       Runtime.trap("Game not found");
     };
@@ -170,6 +139,10 @@ actor {
   // Game Queries (Public)
   public query func listOpenGames() : async [GameTile] {
     gameTiles.values().toArray().filter(func(g) { g.isOpen });
+  };
+
+  public query func listAllGames() : async [GameTile] {
+    gameTiles.values().toArray();
   };
 
   public query func getGame(gameId : Nat) : async GameTile {
@@ -193,36 +166,18 @@ actor {
     newReg.id;
   };
 
-  public query ({ caller }) func getRegistration(regId : Nat) : async Registration {
+  public query func getRegistration(regId : Nat) : async Registration {
     switch (registrationsV2.get(regId)) {
       case (null) { Runtime.trap("Registration not found") };
-      case (?reg) {
-        if (caller != reg.owner and not Authorization.isAdmin(accessControlState, caller)) {
-          Runtime.trap("Unauthorized: Can only view your own registrations");
-        };
-        reg;
-      };
+      case (?reg) { reg };
     };
   };
 
-  public query ({ caller }) func getCallerRegistrations() : async [Registration] {
-    if (not (Authorization.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can view their registrations");
-    };
-    registrationsV2.values().toArray().filter(func(r) { r.owner == caller });
-  };
-
-  public query ({ caller }) func getGameRegistrations(gameId : Nat) : async [Registration] {
-    if (not (Authorization.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can list registrations per game");
-    };
+  public query func getGameRegistrations(gameId : Nat) : async [Registration] {
     registrationsV2.values().toArray().filter(func(r) { r.gameId == gameId });
   };
 
-  public shared ({ caller }) func updatePaymentStatus(regId : Nat, status : Text) : async () {
-    if (not (Authorization.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can update payment status");
-    };
+  public shared func updatePaymentStatus(regId : Nat, status : Text) : async () {
     switch (registrationsV2.get(regId)) {
       case (null) { Runtime.trap("Registration not found") };
       case (?reg) {
@@ -235,11 +190,8 @@ actor {
     };
   };
 
-  // Question Management (Admin)
-  public shared ({ caller }) func createQuestion(question : Question) : async Nat {
-    if (not (Authorization.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can create questions");
-    };
+  // Question Management (open to all callers — security enforced by frontend password)
+  public shared func createQuestion(question : Question) : async Nat {
     let newQuestion : Question = {
       question with
       id = nextQuestionId;
@@ -249,20 +201,14 @@ actor {
     newQuestion.id;
   };
 
-  public shared ({ caller }) func updateQuestion(question : Question) : async () {
-    if (not (Authorization.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can update questions");
-    };
+  public shared func updateQuestion(question : Question) : async () {
     if (not globalQuestions.containsKey(question.id)) {
       Runtime.trap("Question not found");
     };
     globalQuestions.add(question.id, question);
   };
 
-  public shared ({ caller }) func deleteQuestion(qid : Nat) : async () {
-    if (not (Authorization.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can delete questions");
-    };
+  public shared func deleteQuestion(qid : Nat) : async () {
     if (not globalQuestions.containsKey(qid)) {
       Runtime.trap("Question not found");
     };
@@ -288,10 +234,7 @@ actor {
     };
   };
 
-  public shared ({ caller }) func setStripeConfiguration(config : Stripe.StripeConfiguration) : async () {
-    if (not (Authorization.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can perform this action");
-    };
+  public shared func setStripeConfiguration(config : Stripe.StripeConfiguration) : async () {
     stripeConfig := ?config;
   };
 
