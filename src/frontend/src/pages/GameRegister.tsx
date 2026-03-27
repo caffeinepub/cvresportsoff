@@ -30,7 +30,16 @@ const GAME_GRADIENTS = [
 const parseQText = (raw: string): { text: string; imageUrl?: string } => {
   try {
     const p = JSON.parse(raw);
-    if (typeof p.text === "string") return p;
+    if (typeof p.text === "string") {
+      if (p.imageRef) {
+        const storedImg = localStorage.getItem(`cvr_qimg_${p.imageRef}`);
+        return { text: p.text, imageUrl: storedImg || undefined };
+      }
+      if (p.imageUrl) {
+        return { text: p.text, imageUrl: p.imageUrl };
+      }
+      return { text: p.text };
+    }
   } catch {}
   return { text: raw };
 };

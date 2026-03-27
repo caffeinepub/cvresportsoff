@@ -244,16 +244,31 @@ function GameEditDialog({
     game,
   );
 
-  const parseQText = (raw: string): { text: string; imageUrl?: string } => {
+  const parseQText = (
+    raw: string,
+  ): { text: string; imageUrl?: string; imageRef?: string } => {
     try {
       const p = JSON.parse(raw);
-      if (typeof p.text === "string") return p;
+      if (typeof p.text === "string") {
+        if (p.imageRef) {
+          const storedImg = localStorage.getItem(`cvr_qimg_${p.imageRef}`);
+          return {
+            text: p.text,
+            imageUrl: storedImg || undefined,
+            imageRef: p.imageRef,
+          };
+        }
+        if (p.imageUrl) {
+          return { text: p.text, imageUrl: p.imageUrl };
+        }
+        return { text: p.text };
+      }
     } catch {}
     return { text: raw };
   };
 
-  const encodeQText = (text: string, imageUrl?: string): string =>
-    imageUrl ? JSON.stringify({ text, imageUrl }) : text;
+  const encodeQText = (text: string, imageRef?: string): string =>
+    imageRef ? JSON.stringify({ text, imageRef }) : text;
 
   const updateField = <K extends keyof typeof form>(
     key: K,
@@ -443,7 +458,7 @@ function GameEditDialog({
                               updateQuestion(
                                 idx,
                                 "questionText",
-                                encodeQText(e.target.value, parsed.imageUrl),
+                                encodeQText(e.target.value, parsed.imageRef),
                               )
                             }
                             placeholder="Question text"
@@ -469,13 +484,18 @@ function GameEditDialog({
                             <button
                               type="button"
                               className="absolute -top-1.5 -right-1.5 bg-destructive rounded-full w-4 h-4 flex items-center justify-center text-white"
-                              onClick={() =>
+                              onClick={() => {
+                                if (parsed.imageRef) {
+                                  localStorage.removeItem(
+                                    `cvr_qimg_${parsed.imageRef}`,
+                                  );
+                                }
                                 updateQuestion(
                                   idx,
                                   "questionText",
                                   encodeQText(parsed.text, undefined),
-                                )
-                              }
+                                );
+                              }}
                             >
                               <X className="w-2.5 h-2.5" />
                             </button>
@@ -497,13 +517,16 @@ function GameEditDialog({
                                 }
                                 const reader = new FileReader();
                                 reader.onload = () => {
+                                  const base64 = reader.result as string;
+                                  const key = String(Date.now());
+                                  localStorage.setItem(
+                                    `cvr_qimg_${key}`,
+                                    base64,
+                                  );
                                   updateQuestion(
                                     idx,
                                     "questionText",
-                                    encodeQText(
-                                      parsed.text,
-                                      reader.result as string,
-                                    ),
+                                    encodeQText(parsed.text, key),
                                   );
                                 };
                                 reader.readAsDataURL(file);
