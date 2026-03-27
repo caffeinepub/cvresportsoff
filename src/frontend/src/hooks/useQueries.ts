@@ -11,6 +11,7 @@ export function useListAllGames() {
       return actor.listAllGames();
     },
     enabled: !!actor && !isFetching,
+    staleTime: 5_000,
   });
 }
 
@@ -28,8 +29,8 @@ export function useListOpenGames() {
 }
 
 export function useGetGame(gameId: bigint | null) {
-  const { actor } = useActor();
-  return useQuery({
+  const { actor, isFetching: actorFetching } = useActor();
+  const query = useQuery({
     queryKey: ["game", gameId?.toString()],
     queryFn: async () => {
       if (!actor || gameId === null) throw new Error("No actor or gameId");
@@ -37,7 +38,10 @@ export function useGetGame(gameId: bigint | null) {
     },
     enabled: !!actor && gameId !== null,
     staleTime: 5_000,
+    retry: 4,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
   });
+  return { ...query, isLoading: query.isLoading || actorFetching };
 }
 
 export function useIsAdmin() {

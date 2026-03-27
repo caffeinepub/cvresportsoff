@@ -53,6 +53,7 @@ import { motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { GameTile, Question } from "../backend";
+import { useActor } from "../hooks/useActor";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import {
   useCreateGame,
@@ -66,6 +67,12 @@ import {
   useUpdateGame,
   useUpdatePaymentStatus,
 } from "../hooks/useQueries";
+import {
+  deleteVideo,
+  hasVideo,
+  loadVideo,
+  saveVideo,
+} from "../utils/videoStorage";
 
 const getAdminPassword = () =>
   localStorage.getItem("cvr_admin_password") || "000";
@@ -239,12 +246,19 @@ function GameEditDialog({
   game: Partial<GameTile> & typeof EMPTY_GAME;
   open: boolean;
   onClose: () => void;
-  onSave: (g: GameTile) => void;
+  onSave: (g: GameTile, isNew: boolean) => void;
   isSaving: boolean;
 }) {
   const [form, setForm] = useState<Omit<GameTile, "id"> & { id?: bigint }>(
     game,
   );
+  const [bgVideoUrl, setBgVideoUrl] = useState<string | null>(null);
+
+  // Load bg video from IndexedDB when dialog opens
+  useEffect(() => {
+    const gameId = form.id?.toString() ?? "new";
+    loadVideo(`cvr_bgvideo_game_${gameId}`).then(setBgVideoUrl);
+  }, [form.id]);
 
   const parseQText = (
     raw: string,
@@ -314,7 +328,8 @@ function GameEditDialog({
       toast.error("Title is required");
       return;
     }
-    onSave({ ...form, id: form.id ?? BigInt(0) } as GameTile);
+    const _isNew = form.id === undefined || form.id === null;
+    onSave({ ...form, id: form.id ?? BigInt(0) } as GameTile, _isNew);
   };
 
   return (
@@ -474,36 +489,31 @@ function GameEditDialog({
               BACKGROUND VIDEO (optional, unique per game)
             </Label>
             <div className="space-y-2">
-              {(() => {
-                const gameId = form.id?.toString() ?? "new";
-                const storedVideo = localStorage.getItem(
-                  `cvr_bgvideo_game_${gameId}`,
-                );
-                return storedVideo ? (
-                  <div className="relative">
-                    <video
-                      src={storedVideo}
-                      className="w-full h-24 object-cover rounded border border-border"
-                      muted
-                      playsInline
-                      preload="metadata"
-                    />
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="icon"
-                      className="absolute top-1 right-1 w-6 h-6"
-                      onClick={() => {
-                        localStorage.removeItem(`cvr_bgvideo_game_${gameId}`);
-                        // Force re-render
-                        updateField("title", form.title);
-                      }}
-                    >
-                      <X className="w-3 h-3" />
-                    </Button>
-                  </div>
-                ) : null;
-              })()}
+              {bgVideoUrl && (
+                <div className="relative">
+                  <video
+                    src={bgVideoUrl}
+                    className="w-full h-24 object-cover rounded border border-border"
+                    muted
+                    playsInline
+                    preload="metadata"
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-1 right-1 w-6 h-6"
+                    onClick={() => {
+                      const gameId = form.id?.toString() ?? "new";
+                      deleteVideo(`cvr_bgvideo_game_${gameId}`).then(() => {
+                        setBgVideoUrl(null);
+                      });
+                    }}
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                </div>
+              )}
               <input
                 type="file"
                 accept="video/*"
@@ -513,14 +523,9 @@ function GameEditDialog({
                   const file = e.target.files?.[0];
                   if (!file) return;
                   const gameId = form.id?.toString() ?? "new";
-                  const reader = new FileReader();
-                  reader.onload = (ev) => {
-                    const base64 = ev.target?.result as string;
-                    localStorage.setItem(`cvr_bgvideo_game_${gameId}`, base64);
-                    // Force re-render
-                    updateField("title", form.title);
-                  };
-                  reader.readAsDataURL(file);
+                  saveVideo(`cvr_bgvideo_game_${gameId}`, file).then(() => {
+                    loadVideo(`cvr_bgvideo_game_${gameId}`).then(setBgVideoUrl);
+                  });
                   e.target.value = "";
                 }}
               />
@@ -533,11 +538,7 @@ function GameEditDialog({
                 }
               >
                 <Video className="w-4 h-4 mr-2" />
-                {localStorage.getItem(
-                  `cvr_bgvideo_game_${form.id?.toString() ?? "new"}`,
-                )
-                  ? "CHANGE BG VIDEO"
-                  : "UPLOAD BG VIDEO"}
+                {bgVideoUrl ? "CHANGE BG VIDEO" : "UPLOAD BG VIDEO"}
               </Button>
             </div>
           </div>
@@ -776,12 +777,37 @@ function useSessionTimer(loginTime: number) {
   return elapsed;
 }
 
+const ADMIN_CACHE_KEY = "cvr_games_cache";
+function adminSafeParse(raw: string): GameTile[] {
+  try {
+    return JSON.parse(raw, (_key, value) =>
+      value && typeof value === "object" && "__bigint__" in value
+        ? BigInt((value as { __bigint__: string }).__bigint__)
+        : value,
+    ) as GameTile[];
+  } catch {
+    return [];
+  }
+}
+
 // ── AdminPage ────────────────────────────────────────────────────────────────
 export default function AdminPage() {
   const navigate = useNavigate();
   const { identity, login, loginStatus, clear } = useInternetIdentity();
   const { isLoading: adminLoading } = useIsAdmin();
-  const { data: games, isLoading: gamesLoading } = useListAllGames();
+  const [cachedGames, setCachedGames] = useState<GameTile[]>(() => {
+    try {
+      const raw = localStorage.getItem(ADMIN_CACHE_KEY);
+      if (raw) return adminSafeParse(raw);
+    } catch {
+      /* ignore */
+    }
+    return [];
+  });
+  const { actor, isFetching: actorFetching } = useActor();
+  const { data: backendGames, isLoading: gamesLoading } = useListAllGames();
+  const games =
+    backendGames && backendGames.length > 0 ? backendGames : cachedGames;
   const { data: stripeConfigured } = useIsStripeConfigured();
 
   const createGame = useCreateGame();
@@ -866,19 +892,42 @@ export default function AdminPage() {
   } = useBgElements();
   const bgFileRef = useRef<HTMLInputElement>(null);
 
-  const handleSaveGame = async (game: GameTile) => {
+  const handleSaveGame = async (game: GameTile, isNew = false) => {
+    if (!actor) {
+      toast.error(
+        "Still connecting to network, please wait a moment and try again.",
+      );
+      return;
+    }
     try {
-      if (!game.id || game.id === BigInt(0)) {
+      if (isNew) {
         await createGame.mutateAsync(game);
         toast.success("Game created!");
       } else {
-        await updateGame.mutateAsync(game);
-        toast.success("Game updated!");
+        try {
+          await updateGame.mutateAsync(game);
+          toast.success("Game updated!");
+        } catch (updateErr) {
+          // Only fall back to createGame if the backend says the game doesn't exist.
+          // For network errors we re-throw so the user sees the real problem.
+          const errMsg = String(updateErr);
+          if (
+            errMsg.includes("Game not found") ||
+            errMsg.includes("not found")
+          ) {
+            await createGame.mutateAsync(game);
+            toast.success("Game saved!");
+          } else {
+            throw updateErr;
+          }
+        }
       }
       localStorage.removeItem("cvr_games_cache");
+      setCachedGames([]);
       setEditingGame(null);
-    } catch {
-      toast.error("Failed to save game");
+    } catch (err) {
+      console.error("Save game error:", err);
+      toast.error("Failed to save game. Please try again.");
     }
   };
 
@@ -1810,7 +1859,9 @@ export default function AdminPage() {
           open={!!editingGame}
           onClose={() => setEditingGame(null)}
           onSave={handleSaveGame}
-          isSaving={createGame.isPending || updateGame.isPending}
+          isSaving={
+            createGame.isPending || updateGame.isPending || actorFetching
+          }
         />
       )}
 

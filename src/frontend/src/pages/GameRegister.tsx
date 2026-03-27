@@ -20,12 +20,13 @@ import {
   Shield,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { Answer, Registration, ShoppingItem } from "../backend";
 import { useActor } from "../hooks/useActor";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { useGetGame } from "../hooks/useQueries";
+import { loadVideo } from "../utils/videoStorage";
 
 const GAME_GRADIENTS = [
   "from-orange-900 via-red-950 to-black",
@@ -57,7 +58,7 @@ export default function GameRegisterPage() {
   const navigate = useNavigate();
   const gameId = BigInt(params.id);
   const { data: game, isLoading } = useGetGame(gameId);
-  const { actor } = useActor();
+  const { actor, isFetching: actorFetching, isError: actorError } = useActor();
   const { identity, login, loginStatus } = useInternetIdentity();
 
   const [playerName, setPlayerName] = useState("");
@@ -68,6 +69,14 @@ export default function GameRegisterPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [dupTxnDialogOpen, setDupTxnDialogOpen] = useState(false);
+  const [bgVideoSrc, setBgVideoSrc] = useState("");
+  const gameIdStr = game?.id?.toString();
+  useEffect(() => {
+    if (!gameIdStr) return;
+    loadVideo(`cvr_bgvideo_game_${gameIdStr}`).then((url) => {
+      setBgVideoSrc(url || "");
+    });
+  }, [gameIdStr]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,15 +97,12 @@ export default function GameRegisterPage() {
 
     setIsSubmitting(true);
     try {
-      // Check for duplicate transaction ID (belt-and-suspenders: catch if method not yet deployed)
+      // Check for duplicate transaction ID
       let isDuplicate = false;
       try {
-        const extActor = actor as any;
-        if (typeof extActor.checkTransactionId === "function") {
-          isDuplicate = await extActor.checkTransactionId(transactionId.trim());
-        }
+        isDuplicate = await actor.checkTransactionId(transactionId.trim());
       } catch {
-        // method not available yet, skip duplicate check
+        // skip if unavailable
       }
 
       if (isDuplicate) {
@@ -112,22 +118,23 @@ export default function GameRegisterPage() {
           answer: answers[q.id.toString()] || "",
         }));
 
-      const reg = {
+      const reg: Registration = {
         id: BigInt(0),
         playerName: playerName.trim(),
         uid: uid.trim(),
         inGameName: inGameName.trim(),
         transactionId: transactionId.trim(),
         paymentStatus: "pending",
+        paymentScreenshotUrl: null,
         owner: identity.getPrincipal(),
         answers: answerList,
         createdAt: BigInt(Date.now()) * BigInt(1_000_000),
         gameId: game.id,
-      } as Registration & { transactionId: string };
+      };
 
       let regId: bigint;
       try {
-        regId = await actor.submitRegistration(reg as Registration);
+        regId = await actor.submitRegistration(reg);
       } catch (err) {
         const errMsg = String(err);
         if (errMsg.includes("DUPLICATE_TRANSACTION_ID")) {
@@ -174,7 +181,7 @@ export default function GameRegisterPage() {
 
   const gradientClass = GAME_GRADIENTS[Number(gameId) % GAME_GRADIENTS.length];
 
-  if (isLoading) {
+  if (isLoading || actorFetching) {
     return (
       <div
         className="min-h-screen bg-background flex items-center justify-center"
@@ -186,18 +193,23 @@ export default function GameRegisterPage() {
   }
 
   if (!game) {
+    const errorMsg = actorError
+      ? "CONNECTION ERROR. PLEASE REFRESH AND TRY AGAIN."
+      : "GAME NOT FOUND";
     return (
       <div
         className="min-h-screen bg-background flex items-center justify-center"
         data-ocid="register.error_state"
       >
         <div className="text-center">
-          <p className="text-muted-foreground font-display">GAME NOT FOUND</p>
+          <p className="text-muted-foreground font-display">{errorMsg}</p>
           <Button
             className="btn-primary mt-4"
-            onClick={() => navigate({ to: "/" })}
+            onClick={() =>
+              actorError ? window.location.reload() : navigate({ to: "/" })
+            }
           >
-            BACK TO HOME
+            {actorError ? "RETRY" : "BACK TO HOME"}
           </Button>
         </div>
       </div>
@@ -233,9 +245,6 @@ export default function GameRegisterPage() {
       </div>
     );
   }
-
-  const bgVideoSrc =
-    localStorage.getItem(`cvr_bgvideo_game_${game.id.toString()}`) || "";
 
   return (
     <div className="min-h-screen relative">

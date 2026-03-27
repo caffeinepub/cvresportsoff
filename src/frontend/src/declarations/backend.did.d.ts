@@ -37,6 +37,8 @@ export interface Registration {
   'createdAt' : Time,
   'gameId' : bigint,
   'playerName' : string,
+  'transactionId' : string,
+  'paymentScreenshotUrl' : [] | [string],
 }
 export interface ShoppingItem {
   'productName' : string,
@@ -80,6 +82,7 @@ export interface _SERVICE {
     [Array<ShoppingItem>, string, string],
     string
   >,
+  'checkTransactionId' : ActorMethod<[string], boolean>,
   'createGame' : ActorMethod<[GameTile], bigint>,
   'createQuestion' : ActorMethod<[Question], bigint>,
   'deleteGame' : ActorMethod<[bigint], undefined>,

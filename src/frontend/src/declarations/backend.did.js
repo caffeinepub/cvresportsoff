@@ -51,6 +51,8 @@ export const Registration = IDL.Record({
   'createdAt' : Time,
   'gameId' : IDL.Nat,
   'playerName' : IDL.Text,
+  'transactionId' : IDL.Text,
+  'paymentScreenshotUrl' : IDL.Opt(IDL.Text),
 });
 export const UserProfile = IDL.Record({ 'name' : IDL.Text });
 export const StripeSessionStatus = IDL.Variant({
@@ -91,6 +93,7 @@ export const idlService = IDL.Service({
       [IDL.Text],
       [],
     ),
+  'checkTransactionId' : IDL.Func([IDL.Text], [IDL.Bool], ['query']),
   'createGame' : IDL.Func([GameTile], [IDL.Nat], []),
   'createQuestion' : IDL.Func([Question], [IDL.Nat], []),
   'deleteGame' : IDL.Func([IDL.Nat], [], []),
@@ -210,7 +213,8 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Text],
         [],
       ),
-    'createGame' : IDL.Func([GameTile], [IDL.Nat], []),
+    'checkTransactionId' : IDL.Func([IDL.Text], [IDL.Bool], ['query']),
+  'createGame' : IDL.Func([GameTile], [IDL.Nat], []),
     'createQuestion' : IDL.Func([Question], [IDL.Nat], []),
     'deleteGame' : IDL.Func([IDL.Nat], [], []),
     'deleteQuestion' : IDL.Func([IDL.Nat], [], []),
