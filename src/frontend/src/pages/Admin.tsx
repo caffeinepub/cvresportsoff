@@ -442,9 +442,21 @@ function GameEditDialog({
                   e.target.value = "";
                   setBannerUploading(true);
                   try {
+                    console.log("[Banner Upload] Starting upload...");
+                    console.log(
+                      "[Banner Upload] File:",
+                      file.name,
+                      file.type,
+                      file.size,
+                      "bytes",
+                    );
                     const arrayBuffer = await file.arrayBuffer();
                     const bytes = new Uint8Array(arrayBuffer);
                     const config = await loadConfig();
+                    console.log(
+                      "[Banner Upload] Gateway URL:",
+                      config.storage_gateway_url,
+                    );
                     const agent = new HttpAgent({ host: config.backend_host });
                     if (config.backend_host?.includes("localhost")) {
                       await agent.fetchRootKey().catch(() => {});
@@ -457,10 +469,15 @@ function GameEditDialog({
                       agent,
                     );
                     const { hash } = await client.putFile(bytes);
+                    console.log("[Banner Upload] Hash:", hash);
                     const url = await client.getDirectURL(hash);
+                    console.log("[Banner Upload] Public URL:", url);
                     updateField("bannerUrl", url);
-                  } catch (_err) {
-                    toast.error("Banner upload failed. Please try again.");
+                  } catch (err) {
+                    console.error("[Banner Upload] FAILED:", err);
+                    const msg =
+                      err instanceof Error ? err.message : String(err);
+                    toast.error(`Banner upload failed: ${msg}`);
                   } finally {
                     setBannerUploading(false);
                   }
@@ -645,9 +662,23 @@ function GameEditDialog({
                                 }
                                 e.target.value = "";
                                 try {
+                                  console.log(
+                                    "[Question Image Upload] Starting upload...",
+                                  );
+                                  console.log(
+                                    "[Question Image Upload] File:",
+                                    file.name,
+                                    file.type,
+                                    file.size,
+                                    "bytes",
+                                  );
                                   const arrayBuffer = await file.arrayBuffer();
                                   const bytes = new Uint8Array(arrayBuffer);
                                   const config = await loadConfig();
+                                  console.log(
+                                    "[Question Image Upload] Gateway URL:",
+                                    config.storage_gateway_url,
+                                  );
                                   const agent = new HttpAgent({
                                     host: config.backend_host,
                                   });
@@ -664,7 +695,15 @@ function GameEditDialog({
                                     agent,
                                   );
                                   const { hash } = await client.putFile(bytes);
+                                  console.log(
+                                    "[Question Image Upload] Hash:",
+                                    hash,
+                                  );
                                   const url = await client.getDirectURL(hash);
+                                  console.log(
+                                    "[Question Image Upload] Public URL:",
+                                    url,
+                                  );
                                   updateQuestion(
                                     idx,
                                     "questionText",
@@ -672,12 +711,14 @@ function GameEditDialog({
                                   );
                                 } catch (err) {
                                   console.error(
-                                    "Question image upload failed:",
+                                    "[Question Image Upload] FAILED:",
                                     err,
                                   );
-                                  toast.error(
-                                    "Image upload failed. Try again.",
-                                  );
+                                  const msg =
+                                    err instanceof Error
+                                      ? err.message
+                                      : String(err);
+                                  toast.error(`Image upload failed: ${msg}`);
                                 }
                               }}
                             />
@@ -972,6 +1013,19 @@ export default function AdminPage() {
   const { sponsors, add: addSponsor, remove: removeSponsor } = useSponsors();
   const [sponsorName, setSponsorName] = useState("");
   const [sponsorUploading, setSponsorUploading] = useState(false);
+  const [storageHealthy, setStorageHealthy] = useState<boolean | null>(null);
+
+  // Health check on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("https://blob.caffeine.ai", { method: "GET" });
+        setStorageHealthy(res.ok);
+      } catch {
+        setStorageHealthy(false);
+      }
+    })();
+  }, []);
 
   const handleSaveGame = async (game: GameTile, isNew = false) => {
     if (!actor) {
@@ -1792,6 +1846,12 @@ export default function AdminPage() {
             <div className="bg-card border border-border rounded-lg p-4 space-y-4 mb-4">
               <h4 className="font-display text-sm text-foreground">SPONSORS</h4>
               <p className="text-muted-foreground text-xs">
+                {storageHealthy === false && (
+                  <div className="rounded border border-red-500/60 bg-red-950/40 px-3 py-2 text-xs text-red-400 text-center">
+                    Storage service is offline. Uploads are disabled until the
+                    service is restored.
+                  </div>
+                )}
                 Add sponsor images or videos. They appear as an Instagram-style
                 slideshow on the homepage, below the tournaments section.
               </p>
@@ -1812,17 +1872,42 @@ export default function AdminPage() {
               <input
                 ref={sponsorFileRef}
                 type="file"
-                accept="image/*,video/*"
+                accept="image/jpeg,image/png,video/mp4"
                 className="hidden"
                 onChange={async (e) => {
                   const file = e.target.files?.[0];
                   if (!file) return;
+                  // File type validation
+                  const allowedTypes = ["image/jpeg", "image/png", "video/mp4"];
+                  if (!allowedTypes.includes(file.type)) {
+                    toast.error(
+                      "Invalid file type. Only JPG, PNG, and MP4 are supported.",
+                    );
+                    return;
+                  }
+                  // File size validation (5MB)
+                  if (file.size > 5 * 1024 * 1024) {
+                    toast.error("File too large. Maximum size is 5MB.");
+                    return;
+                  }
                   e.target.value = "";
                   setSponsorUploading(true);
                   try {
+                    console.log("[Sponsor Upload] Starting upload...");
+                    console.log(
+                      "[Sponsor Upload] File:",
+                      file.name,
+                      file.type,
+                      file.size,
+                      "bytes",
+                    );
                     const arrayBuffer = await file.arrayBuffer();
                     const bytes = new Uint8Array(arrayBuffer);
                     const config = await loadConfig();
+                    console.log(
+                      "[Sponsor Upload] Gateway URL:",
+                      config.storage_gateway_url,
+                    );
                     const agent = new HttpAgent({ host: config.backend_host });
                     if (config.backend_host?.includes("localhost")) {
                       await agent.fetchRootKey().catch(() => {});
@@ -1835,7 +1920,9 @@ export default function AdminPage() {
                       agent,
                     );
                     const { hash } = await client.putFile(bytes);
+                    console.log("[Sponsor Upload] Hash:", hash);
                     const url = await client.getDirectURL(hash);
+                    console.log("[Sponsor Upload] Public URL:", url);
                     const mediaType = file.type.startsWith("video/")
                       ? "video"
                       : "image";
@@ -1847,9 +1934,20 @@ export default function AdminPage() {
                     });
                     setSponsorName("");
                     toast.success("Sponsor added!");
-                  } catch (_err) {
-                    console.error("Sponsor upload error:", _err);
-                    toast.error("Upload failed. Please try again.");
+                  } catch (err) {
+                    console.error("[Sponsor Upload] FAILED:", err);
+                    const msg =
+                      err instanceof Error ? err.message : String(err);
+                    if (
+                      msg.toLowerCase().includes("stopped") ||
+                      msg.toLowerCase().includes("offline")
+                    ) {
+                      toast.error(
+                        "Storage server is offline. Try again later.",
+                      );
+                    } else {
+                      toast.error(`Upload failed: ${msg}`);
+                    }
                   } finally {
                     setSponsorUploading(false);
                   }
@@ -1859,7 +1957,7 @@ export default function AdminPage() {
               <Button
                 variant="outline"
                 className="btn-outline-orange w-full text-xs"
-                disabled={sponsorUploading}
+                disabled={sponsorUploading || storageHealthy === false}
                 onClick={() => sponsorFileRef.current?.click()}
                 data-ocid="sponsors.upload_button"
               >
@@ -1870,7 +1968,9 @@ export default function AdminPage() {
                 )}
                 {sponsorUploading
                   ? "UPLOADING..."
-                  : "ADD SPONSOR (IMAGE / VIDEO)"}
+                  : storageHealthy === false
+                    ? "STORAGE OFFLINE"
+                    : "ADD SPONSOR (IMAGE / VIDEO)"}
               </Button>
 
               {sponsors.length === 0 ? (
