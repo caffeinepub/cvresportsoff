@@ -401,15 +401,71 @@ function GameEditDialog({
 
           <div className="space-y-1.5">
             <Label className="font-display text-xs text-muted-foreground">
-              BANNER URL (optional)
+              BANNER IMAGE (optional)
             </Label>
-            <Input
-              value={form.bannerUrl}
-              onChange={(e) => updateField("bannerUrl", e.target.value)}
-              placeholder="https://..."
-              className="bg-secondary border-border text-sm"
-              data-ocid="game_edit.input"
-            />
+            <div className="space-y-2">
+              {form.bannerUrl && (
+                <div className="relative">
+                  <img
+                    src={
+                      form.bannerUrl.startsWith("local:")
+                        ? localStorage.getItem(
+                            `cvr_banner_${form.bannerUrl.slice(6)}`,
+                          ) || ""
+                        : form.bannerUrl
+                    }
+                    alt="Banner preview"
+                    className="w-full h-24 object-cover rounded border border-border"
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-1 right-1 w-6 h-6"
+                    onClick={() => {
+                      if (form.bannerUrl?.startsWith("local:")) {
+                        localStorage.removeItem(
+                          `cvr_banner_${form.bannerUrl.slice(6)}`,
+                        );
+                      }
+                      updateField("bannerUrl", "");
+                    }}
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                </div>
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                id="banner-upload-input"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = (ev) => {
+                    const base64 = ev.target?.result as string;
+                    const key = `banner_${Date.now()}`;
+                    localStorage.setItem(`cvr_banner_${key}`, base64);
+                    updateField("bannerUrl", `local:${key}`);
+                  };
+                  reader.readAsDataURL(file);
+                  e.target.value = "";
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full text-xs border-dashed"
+                onClick={() =>
+                  document.getElementById("banner-upload-input")?.click()
+                }
+              >
+                <ImagePlus className="w-4 h-4 mr-2" />
+                {form.bannerUrl ? "CHANGE BANNER" : "UPLOAD BANNER"}
+              </Button>
+            </div>
           </div>
 
           <div className="flex items-center justify-between">
