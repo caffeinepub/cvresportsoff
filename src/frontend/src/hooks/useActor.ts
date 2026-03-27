@@ -32,8 +32,6 @@ export function useActor() {
     },
     // Only refetch when identity changes
     staleTime: Number.POSITIVE_INFINITY,
-    retry: 5,
-    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
     // This will cause the actor to be recreated when the identity changes
     enabled: true,
   });
@@ -56,7 +54,6 @@ export function useActor() {
 
   return {
     actor: actorQuery.data || null,
-    isFetching: actorQuery.isFetching || actorQuery.isPending,
-    isError: actorQuery.isError,
+    isFetching: actorQuery.isFetching,
   };
 }

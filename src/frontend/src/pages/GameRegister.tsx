@@ -58,7 +58,8 @@ export default function GameRegisterPage() {
   const navigate = useNavigate();
   const gameId = BigInt(params.id);
   const { data: game, isLoading } = useGetGame(gameId);
-  const { actor, isFetching: actorFetching, isError: actorError } = useActor();
+  const { actor, isFetching: actorFetching } = useActor();
+  const actorError = !actor && !actorFetching;
   const { identity, login, loginStatus } = useInternetIdentity();
 
   const [playerName, setPlayerName] = useState("");
@@ -368,21 +369,13 @@ export default function GameRegisterPage() {
       <div className="max-w-[430px] mx-auto pb-8 relative z-[2]">
         {/* Game Banner */}
         <div className={`relative h-40 bg-gradient-to-br ${gradientClass}`}>
-          {game.bannerUrl &&
-            (() => {
-              const src = game.bannerUrl.startsWith("local:")
-                ? localStorage.getItem(
-                    `cvr_banner_${game.bannerUrl.slice(6)}`,
-                  ) || ""
-                : game.bannerUrl;
-              return src ? (
-                <img
-                  src={src}
-                  alt={game.title}
-                  className="w-full h-full object-cover"
-                />
-              ) : null;
-            })()}
+          {game.bannerUrl && (
+            <img
+              src={game.bannerUrl}
+              alt={game.title}
+              className="w-full h-full object-cover"
+            />
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent" />
           <div className="absolute inset-0 flex items-center justify-center">
             <Shield className="w-16 h-16 text-orange-glow/20" />

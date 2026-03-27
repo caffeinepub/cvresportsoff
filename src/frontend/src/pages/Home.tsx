@@ -45,17 +45,10 @@ function safeParse(raw: string): unknown {
   );
 }
 
-function resolveBannerUrl(bannerUrl: string): string {
-  if (bannerUrl.startsWith("local:")) {
-    return localStorage.getItem(`cvr_banner_${bannerUrl.slice(6)}`) || "";
-  }
-  return bannerUrl;
-}
-
 function GameCard({ game, index }: { game: GameTile; index: number }) {
   const navigate = useNavigate();
   const gradient = GAME_GRADIENTS[index % GAME_GRADIENTS.length];
-  const bannerSrc = game.bannerUrl ? resolveBannerUrl(game.bannerUrl) : "";
+  const bannerSrc = game.bannerUrl || "";
 
   return (
     <motion.div

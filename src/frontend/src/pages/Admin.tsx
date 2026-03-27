@@ -26,6 +26,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { HttpAgent } from "@icp-sdk/core/agent";
 import { useNavigate } from "@tanstack/react-router";
 import {
   AlertTriangle,
@@ -53,6 +54,7 @@ import { motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { GameTile, Question } from "../backend";
+import { loadConfig } from "../config";
 import { useActor } from "../hooks/useActor";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import {
@@ -67,6 +69,7 @@ import {
   useUpdateGame,
   useUpdatePaymentStatus,
 } from "../hooks/useQueries";
+import { StorageClient } from "../utils/StorageClient";
 import {
   deleteVideo,
   hasVideo,
@@ -253,6 +256,7 @@ function GameEditDialog({
     game,
   );
   const [bgVideoUrl, setBgVideoUrl] = useState<string | null>(null);
+  const [bannerUploading, setBannerUploading] = useState(false);
 
   // Load bg video from IndexedDB when dialog opens
   useEffect(() => {
@@ -423,13 +427,7 @@ function GameEditDialog({
               {form.bannerUrl && (
                 <div className="relative">
                   <img
-                    src={
-                      form.bannerUrl.startsWith("local:")
-                        ? localStorage.getItem(
-                            `cvr_banner_${form.bannerUrl.slice(6)}`,
-                          ) || ""
-                        : form.bannerUrl
-                    }
+                    src={form.bannerUrl}
                     alt="Banner preview"
                     className="w-full h-24 object-cover rounded border border-border"
                   />
@@ -439,11 +437,6 @@ function GameEditDialog({
                     size="icon"
                     className="absolute top-1 right-1 w-6 h-6"
                     onClick={() => {
-                      if (form.bannerUrl?.startsWith("local:")) {
-                        localStorage.removeItem(
-                          `cvr_banner_${form.bannerUrl.slice(6)}`,
-                        );
-                      }
                       updateField("bannerUrl", "");
                     }}
                   >
@@ -456,30 +449,51 @@ function GameEditDialog({
                 accept="image/*"
                 className="hidden"
                 id="banner-upload-input"
-                onChange={(e) => {
+                onChange={async (e) => {
                   const file = e.target.files?.[0];
                   if (!file) return;
-                  const reader = new FileReader();
-                  reader.onload = (ev) => {
-                    const base64 = ev.target?.result as string;
-                    const key = `banner_${Date.now()}`;
-                    localStorage.setItem(`cvr_banner_${key}`, base64);
-                    updateField("bannerUrl", `local:${key}`);
-                  };
-                  reader.readAsDataURL(file);
                   e.target.value = "";
+                  setBannerUploading(true);
+                  try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const bytes = new Uint8Array(arrayBuffer);
+                    const config = await loadConfig();
+                    const agent = new HttpAgent({ host: config.backend_host });
+                    if (config.backend_host?.includes("localhost")) {
+                      await agent.fetchRootKey().catch(() => {});
+                    }
+                    const client = new StorageClient(
+                      config.bucket_name,
+                      config.storage_gateway_url,
+                      config.backend_canister_id,
+                      config.project_id,
+                      agent,
+                    );
+                    const { hash } = await client.putFile(bytes);
+                    const url = await client.getDirectURL(hash);
+                    updateField("bannerUrl", url);
+                  } catch (_err) {
+                    toast.error("Banner upload failed. Please try again.");
+                  } finally {
+                    setBannerUploading(false);
+                  }
                 }}
               />
               <Button
                 type="button"
                 variant="outline"
                 className="w-full text-xs border-dashed"
+                disabled={bannerUploading}
                 onClick={() =>
                   document.getElementById("banner-upload-input")?.click()
                 }
               >
                 <ImagePlus className="w-4 h-4 mr-2" />
-                {form.bannerUrl ? "CHANGE BANNER" : "UPLOAD BANNER"}
+                {bannerUploading
+                  ? "UPLOADING..."
+                  : form.bannerUrl
+                    ? "CHANGE BANNER"
+                    : "UPLOAD BANNER"}
               </Button>
             </div>
           </div>
@@ -925,8 +939,8 @@ export default function AdminPage() {
       localStorage.removeItem("cvr_games_cache");
       setCachedGames([]);
       setEditingGame(null);
-    } catch (err) {
-      console.error("Save game error:", err);
+    } catch (_err) {
+      console.error("Save game error:", _err);
       toast.error("Failed to save game. Please try again.");
     }
   };
