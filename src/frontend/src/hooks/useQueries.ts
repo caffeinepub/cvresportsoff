@@ -23,7 +23,7 @@ export function useListOpenGames() {
       return actor.listOpenGames();
     },
     enabled: !!actor,
-    staleTime: 30_000,
+    staleTime: 5_000,
   });
 }
 
@@ -36,7 +36,7 @@ export function useGetGame(gameId: bigint | null) {
       return actor.getGame(gameId);
     },
     enabled: !!actor && gameId !== null,
-    staleTime: 30_000,
+    staleTime: 5_000,
   });
 }
 

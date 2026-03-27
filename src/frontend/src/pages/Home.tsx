@@ -31,9 +31,31 @@ const GAME_GRADIENTS = [
 
 const CACHE_KEY = "cvr_games_cache";
 
+function safeStringify(data: unknown): string {
+  return JSON.stringify(data, (_key, value) =>
+    typeof value === "bigint" ? { __bigint__: value.toString() } : value,
+  );
+}
+
+function safeParse(raw: string): unknown {
+  return JSON.parse(raw, (_key, value) =>
+    value && typeof value === "object" && "__bigint__" in value
+      ? BigInt((value as { __bigint__: string }).__bigint__)
+      : value,
+  );
+}
+
+function resolveBannerUrl(bannerUrl: string): string {
+  if (bannerUrl.startsWith("local:")) {
+    return localStorage.getItem(`cvr_banner_${bannerUrl.slice(6)}`) || "";
+  }
+  return bannerUrl;
+}
+
 function GameCard({ game, index }: { game: GameTile; index: number }) {
   const navigate = useNavigate();
   const gradient = GAME_GRADIENTS[index % GAME_GRADIENTS.length];
+  const bannerSrc = game.bannerUrl ? resolveBannerUrl(game.bannerUrl) : "";
 
   return (
     <motion.div
@@ -51,9 +73,9 @@ function GameCard({ game, index }: { game: GameTile; index: number }) {
         <div className="absolute inset-0 flex items-center justify-center">
           <Shield className="w-10 h-10 text-orange-glow/30" />
         </div>
-        {game.bannerUrl && (
+        {bannerSrc && (
           <img
-            src={game.bannerUrl}
+            src={bannerSrc}
             alt={game.title}
             className="w-full h-full object-cover absolute inset-0"
             loading="lazy"
@@ -121,7 +143,7 @@ export default function HomePage() {
   const [cachedGames, setCachedGames] = useState<GameTile[]>(() => {
     try {
       const raw = localStorage.getItem(CACHE_KEY);
-      if (raw) return JSON.parse(raw);
+      if (raw) return safeParse(raw) as GameTile[];
     } catch {
       /* ignore */
     }
@@ -153,10 +175,10 @@ export default function HomePage() {
 
   // Update cache when backend data arrives
   useEffect(() => {
-    if (backendGames && backendGames.length > 0) {
+    if (backendGames !== undefined) {
       setCachedGames(backendGames);
       try {
-        localStorage.setItem(CACHE_KEY, JSON.stringify(backendGames));
+        localStorage.setItem(CACHE_KEY, safeStringify(backendGames));
       } catch {
         /* ignore */
       }

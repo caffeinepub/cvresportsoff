@@ -875,6 +875,7 @@ export default function AdminPage() {
         await updateGame.mutateAsync(game);
         toast.success("Game updated!");
       }
+      localStorage.removeItem("cvr_games_cache");
       setEditingGame(null);
     } catch {
       toast.error("Failed to save game");
