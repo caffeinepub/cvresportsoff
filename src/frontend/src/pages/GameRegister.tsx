@@ -358,7 +358,7 @@ export default function GameRegisterPage() {
           </button>
           <div className="flex items-center">
             <img
-              src="/assets/uploads/file_0000000036c871fa907a38c9391d7ff1-019d2d6c-afb4-74ed-9daa-5e79002c5aee-1.png"
+              src="/assets/cvresports-logo.png"
               alt="CVR eSports Logo"
               className="h-9 w-auto object-contain"
             />

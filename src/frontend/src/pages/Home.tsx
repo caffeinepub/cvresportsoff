@@ -421,7 +421,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link to="/" className="flex items-center" data-ocid="nav.link">
             <img
-              src="/assets/uploads/file_0000000036c871fa907a38c9391d7ff1-019d2d6c-afb4-74ed-9daa-5e79002c5aee-1.png"
+              src="/assets/cvresports-logo.png"
               alt="CVR eSports Logo"
               className="h-10 w-auto object-contain"
               loading="eager"
@@ -661,7 +661,7 @@ export default function HomePage() {
           {/* Brand row */}
           <div className="flex items-center gap-2 mb-4">
             <img
-              src="/assets/uploads/file_0000000036c871fa907a38c9391d7ff1-019d2d6c-afb4-74ed-9daa-5e79002c5aee-1.png"
+              src="/assets/cvresports-logo.png"
               alt="CVR eSports Logo"
               className="h-8 w-auto object-contain"
               loading="lazy"

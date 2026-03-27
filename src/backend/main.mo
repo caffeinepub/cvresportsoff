@@ -8,6 +8,7 @@ import Iter "mo:core/Iter";
 import Principal "mo:core/Principal";
 import Authorization "authorization/access-control";
 import MixinAuthorization "authorization/MixinAuthorization";
+import MixinBlobStorage "blob-storage/Mixin";
 import Stripe "stripe/stripe";
 import OutCall "http-outcalls/outcall";
 
@@ -97,6 +98,9 @@ actor {
   // Authorization
   let accessControlState = Authorization.initState();
   include MixinAuthorization(accessControlState);
+
+  // Blob Storage (required for image/video uploads to cloud storage)
+  include MixinBlobStorage();
 
   // State
   let gameTiles = Map.empty<Nat, GameTile>();
