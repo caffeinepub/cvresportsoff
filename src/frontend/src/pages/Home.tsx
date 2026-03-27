@@ -31,306 +31,6 @@ const GAME_GRADIENTS = [
 
 const CACHE_KEY = "cvr_games_cache";
 
-// Floating battlefield element SVGs
-const FLOAT_ELEMENTS = [
-  {
-    id: "crosshair-1",
-    svg: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="8" stroke="currentColor" stroke-width="1.5"/><line x1="20" y1="0" x2="20" y2="10" stroke="currentColor" stroke-width="1.5"/><line x1="20" y1="30" x2="20" y2="40" stroke="currentColor" stroke-width="1.5"/><line x1="0" y1="20" x2="10" y2="20" stroke="currentColor" stroke-width="1.5"/><line x1="30" y1="20" x2="40" y2="20" stroke="currentColor" stroke-width="1.5"/><circle cx="20" cy="20" r="2" fill="currentColor"/></svg>`,
-    size: 36,
-    top: "12%",
-    left: "8%",
-    animClass: "float-drift-1",
-    opacity: 0.1,
-  },
-  {
-    id: "grenade-1",
-    svg: `<svg viewBox="0 0 30 40" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="11" y="0" width="8" height="6" rx="2"/><rect x="13" y="4" width="4" height="4"/><ellipse cx="15" cy="26" rx="11" ry="14"/><rect x="12" y="8" width="6" height="4" rx="1"/></svg>`,
-    size: 28,
-    top: "65%",
-    left: "5%",
-    animClass: "float-drift-2",
-    opacity: 0.09,
-  },
-  {
-    id: "bullet-1",
-    svg: `<svg viewBox="0 0 16 40" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M8 0 C4 6 2 10 2 14 L2 36 Q2 40 8 40 Q14 40 14 36 L14 14 C14 10 12 6 8 0Z"/></svg>`,
-    size: 22,
-    top: "30%",
-    right: "6%",
-    animClass: "float-drift-3",
-    opacity: 0.12,
-  },
-  {
-    id: "dogtag-1",
-    svg: `<svg viewBox="0 0 36 48" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="8" width="32" height="38" rx="6" stroke="currentColor" stroke-width="2"/><rect x="14" y="0" width="8" height="10" rx="2" stroke="currentColor" stroke-width="1.5"/><line x1="10" y1="20" x2="26" y2="20" stroke="currentColor" stroke-width="1.5"/><line x1="10" y1="27" x2="26" y2="27" stroke="currentColor" stroke-width="1.5"/><line x1="10" y1="34" x2="20" y2="34" stroke="currentColor" stroke-width="1.5"/></svg>`,
-    size: 32,
-    top: "75%",
-    right: "7%",
-    animClass: "float-drift-1",
-    opacity: 0.1,
-  },
-  {
-    id: "crosshair-2",
-    svg: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="8" stroke="currentColor" stroke-width="1.5"/><line x1="20" y1="0" x2="20" y2="10" stroke="currentColor" stroke-width="1.5"/><line x1="20" y1="30" x2="20" y2="40" stroke="currentColor" stroke-width="1.5"/><line x1="0" y1="20" x2="10" y2="20" stroke="currentColor" stroke-width="1.5"/><line x1="30" y1="20" x2="40" y2="20" stroke="currentColor" stroke-width="1.5"/></svg>`,
-    size: 48,
-    top: "45%",
-    left: "88%",
-    animClass: "float-drift-4",
-    opacity: 0.08,
-  },
-  {
-    id: "star-1",
-    svg: `<svg viewBox="0 0 40 40" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><polygon points="20,2 24,15 38,15 27,23 31,37 20,29 9,37 13,23 2,15 16,15"/></svg>`,
-    size: 24,
-    top: "20%",
-    left: "78%",
-    animClass: "float-drift-2",
-    opacity: 0.1,
-  },
-  {
-    id: "shield-1",
-    svg: `<svg viewBox="0 0 36 44" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M18 2 L34 8 L34 22 C34 33 26 40 18 43 C10 40 2 33 2 22 L2 8 Z"/></svg>`,
-    size: 30,
-    top: "55%",
-    left: "50%",
-    animClass: "float-drift-3",
-    opacity: 0.06,
-  },
-];
-
-// Weapon image floating elements
-const WEAPON_FLOAT_ELEMENTS = [
-  {
-    id: "ak47-1",
-    depth: 0.8,
-    src: "/assets/generated/ak47-float-transparent.dim_120x60.png",
-    width: 80,
-    height: 40,
-    top: "18%",
-    left: "15%",
-    animClass: "float-drift-2",
-    filter: "drop-shadow(0 0 4px #00f0ff) drop-shadow(0 0 8px #00f0ff88)",
-  },
-  {
-    id: "ak47-2",
-    depth: 1.2,
-    src: "/assets/generated/ak47-float-transparent.dim_120x60.png",
-    width: 80,
-    height: 40,
-    top: "72%",
-    right: "12%",
-    animClass: "float-drift-4",
-    filter: "drop-shadow(0 0 4px #00f0ff) drop-shadow(0 0 8px #00f0ff88)",
-  },
-  {
-    id: "grenade-img-1",
-    depth: 1.0,
-    src: "/assets/generated/grenade-float-transparent.dim_60x70.png",
-    width: 34,
-    height: 34,
-    top: "8%",
-    left: "45%",
-    animClass: "float-drift-1",
-    filter: "drop-shadow(0 0 4px #00f0ff) drop-shadow(0 0 8px #00f0ff88)",
-  },
-  {
-    id: "grenade-img-2",
-    depth: 0.6,
-    src: "/assets/generated/grenade-float-transparent.dim_60x70.png",
-    width: 34,
-    height: 34,
-    top: "40%",
-    left: "25%",
-    animClass: "float-drift-3",
-    filter: "drop-shadow(0 0 4px #00f0ff) drop-shadow(0 0 8px #00f0ff88)",
-  },
-  {
-    id: "grenade-img-3",
-    depth: 1.1,
-    src: "/assets/generated/grenade-float-transparent.dim_60x70.png",
-    width: 34,
-    height: 34,
-    top: "60%",
-    left: "70%",
-    animClass: "float-drift-2",
-    filter: "drop-shadow(0 0 4px #00f0ff) drop-shadow(0 0 8px #00f0ff88)",
-  },
-  {
-    id: "grenade-img-4",
-    depth: 0.9,
-    src: "/assets/generated/grenade-float-transparent.dim_60x70.png",
-    width: 34,
-    height: 34,
-    top: "82%",
-    left: "38%",
-    animClass: "float-drift-1",
-    filter: "drop-shadow(0 0 4px #00f0ff) drop-shadow(0 0 8px #00f0ff88)",
-  },
-  {
-    id: "grenade-img-5",
-    depth: 0.7,
-    src: "/assets/generated/grenade-float-transparent.dim_60x70.png",
-    width: 34,
-    height: 34,
-    top: "25%",
-    right: "20%",
-    animClass: "float-drift-4",
-    filter: "drop-shadow(0 0 4px #00f0ff) drop-shadow(0 0 8px #00f0ff88)",
-  },
-  {
-    id: "gloowall-1",
-    depth: 1.3,
-    src: "/assets/generated/gloowall-float-transparent.dim_70x70.png",
-    width: 40,
-    height: 40,
-    top: "50%",
-    left: "4%",
-    animClass: "float-drift-3",
-    filter: "drop-shadow(0 0 4px #00cfff) drop-shadow(0 0 8px #00cfff88)",
-  },
-  {
-    id: "gloowall-2",
-    depth: 0.5,
-    src: "/assets/generated/gloowall-float-transparent.dim_70x70.png",
-    width: 40,
-    height: 40,
-    top: "35%",
-    right: "3%",
-    animClass: "float-drift-1",
-    filter: "drop-shadow(0 0 4px #00cfff) drop-shadow(0 0 8px #00cfff88)",
-  },
-];
-
-interface StoredBgElement {
-  id: string;
-  dataUrl: string;
-  name: string;
-}
-
-function useStoredBgElements() {
-  const [elements, setElements] = useState<StoredBgElement[]>(() => {
-    try {
-      const raw = localStorage.getItem("cvr_bg_elements");
-      if (raw) return JSON.parse(raw);
-    } catch {
-      // ignore
-    }
-    return [];
-  });
-
-  useEffect(() => {
-    const handler = () => {
-      try {
-        const raw = localStorage.getItem("cvr_bg_elements");
-        setElements(raw ? JSON.parse(raw) : []);
-      } catch {
-        // ignore
-      }
-    };
-    window.addEventListener("storage", handler);
-    return () => window.removeEventListener("storage", handler);
-  }, []);
-
-  return elements;
-}
-
-function FloatingBattlefieldElements() {
-  const storedElements = useStoredBgElements();
-  const [tilt, setTilt] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-
-  useEffect(() => {
-    const handler = (e: DeviceOrientationEvent) => {
-      const rawX = (e.gamma ?? 0) * 0.5;
-      const rawY = (e.beta ?? 0) * 0.25;
-      setTilt({
-        x: Math.max(-30, Math.min(30, rawX)),
-        y: Math.max(-30, Math.min(30, rawY)),
-      });
-    };
-    window.addEventListener("deviceorientation", handler, { passive: true });
-    return () => window.removeEventListener("deviceorientation", handler);
-  }, []);
-
-  return (
-    <div className="floating-elements-layer" aria-hidden="true">
-      {FLOAT_ELEMENTS.map((el, index) => {
-        const depth = 0.5 + index * 0.15;
-        const posStyle: React.CSSProperties = {
-          position: "absolute",
-          top: el.top,
-          opacity: el.opacity,
-          color: "oklch(0.65 0.22 40)",
-          width: el.size,
-          height: el.size,
-          pointerEvents: "none",
-          zIndex: 1,
-          transform: `translate(${tilt.x * depth}px, ${tilt.y * depth}px)`,
-          transition: "transform 0.15s ease-out",
-        };
-        if ("left" in el && el.left !== undefined) posStyle.left = el.left;
-        if ("right" in el && el.right !== undefined) posStyle.right = el.right;
-        return (
-          <div
-            key={el.id}
-            className={el.animClass}
-            style={posStyle}
-            // biome-ignore lint/security/noDangerouslySetInnerHtml: controlled static SVG markup
-            dangerouslySetInnerHTML={{ __html: el.svg }}
-          />
-        );
-      })}
-      {WEAPON_FLOAT_ELEMENTS.map((el) => {
-        const posStyle: React.CSSProperties = {
-          position: "absolute",
-          top: el.top,
-          width: el.width,
-          height: el.height,
-          opacity: 0.55,
-          pointerEvents: "none",
-          zIndex: 1,
-          objectFit: "contain",
-          filter: el.filter,
-        };
-        if ("left" in el && el.left !== undefined) posStyle.left = el.left;
-        if ("right" in el && el.right !== undefined) posStyle.right = el.right;
-        const depth = (el as { depth?: number }).depth ?? 1.0;
-        return (
-          <img
-            key={el.id}
-            src={el.src}
-            alt=""
-            className={el.animClass}
-            style={{
-              ...posStyle,
-              transform: `translate(${tilt.x * depth}px, ${tilt.y * depth}px)`,
-              transition: "transform 0.15s ease-out",
-            }}
-          />
-        );
-      })}
-      {storedElements.map((el, i) => (
-        <img
-          key={el.id}
-          src={el.dataUrl}
-          alt=""
-          className={FLOAT_ELEMENTS[i % FLOAT_ELEMENTS.length].animClass}
-          style={{
-            position: "absolute",
-            top: `${15 + ((i * 17) % 70)}%`,
-            left: `${10 + ((i * 23) % 80)}%`,
-            width: 40,
-            height: 40,
-            opacity: 0.12,
-            pointerEvents: "none",
-            zIndex: 1,
-            objectFit: "contain",
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
 function GameCard({ game, index }: { game: GameTile; index: number }) {
   const navigate = useNavigate();
   const gradient = GAME_GRADIENTS[index % GAME_GRADIENTS.length];
@@ -357,6 +57,7 @@ function GameCard({ game, index }: { game: GameTile; index: number }) {
             alt={game.title}
             className="w-full h-full object-cover absolute inset-0"
             loading="lazy"
+            decoding="async"
           />
         )}
         <div className="absolute top-2 right-2">
@@ -489,6 +190,8 @@ export default function HomePage() {
               src="/assets/uploads/file_0000000036c871fa907a38c9391d7ff1-019d2d6c-afb4-74ed-9daa-5e79002c5aee-1.png"
               alt="CVR eSports Logo"
               className="h-10 w-auto object-contain"
+              loading="eager"
+              decoding="async"
             />
           </Link>
 
@@ -576,11 +279,9 @@ export default function HomePage() {
               "url(/assets/generated/hero-battlefield.dim_1920x600.jpg)",
             backgroundSize: "cover",
             backgroundPosition: "center top",
+            willChange: "auto",
           }}
         >
-          {/* Floating battlefield elements layer */}
-          <FloatingBattlefieldElements />
-
           <div
             className="hero-overlay absolute inset-0"
             style={{ zIndex: 2 }}
@@ -727,6 +428,8 @@ export default function HomePage() {
               src="/assets/uploads/file_0000000036c871fa907a38c9391d7ff1-019d2d6c-afb4-74ed-9daa-5e79002c5aee-1.png"
               alt="CVR eSports Logo"
               className="h-8 w-auto object-contain"
+              loading="lazy"
+              decoding="async"
             />
           </div>
 
