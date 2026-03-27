@@ -1,5 +1,13 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useNavigate, useParams } from "@tanstack/react-router";
@@ -55,9 +63,11 @@ export default function GameRegisterPage() {
   const [playerName, setPlayerName] = useState("");
   const [uid, setUid] = useState("");
   const [inGameName, setInGameName] = useState("");
+  const [transactionId, setTransactionId] = useState("");
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [dupTxnDialogOpen, setDupTxnDialogOpen] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,8 +81,30 @@ export default function GameRegisterPage() {
       return;
     }
 
+    if (!transactionId.trim()) {
+      toast.error("Please enter your transaction ID");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
+      // Check for duplicate transaction ID (belt-and-suspenders: catch if method not yet deployed)
+      let isDuplicate = false;
+      try {
+        const extActor = actor as any;
+        if (typeof extActor.checkTransactionId === "function") {
+          isDuplicate = await extActor.checkTransactionId(transactionId.trim());
+        }
+      } catch {
+        // method not available yet, skip duplicate check
+      }
+
+      if (isDuplicate) {
+        setDupTxnDialogOpen(true);
+        setIsSubmitting(false);
+        return;
+      }
+
       const answerList: Answer[] = game.questions
         .filter((q) => answers[q.id.toString()] !== undefined)
         .map((q) => ({
@@ -80,19 +112,31 @@ export default function GameRegisterPage() {
           answer: answers[q.id.toString()] || "",
         }));
 
-      const reg: Registration = {
+      const reg = {
         id: BigInt(0),
         playerName: playerName.trim(),
         uid: uid.trim(),
         inGameName: inGameName.trim(),
+        transactionId: transactionId.trim(),
         paymentStatus: "pending",
         owner: identity.getPrincipal(),
         answers: answerList,
         createdAt: BigInt(Date.now()) * BigInt(1_000_000),
         gameId: game.id,
-      };
+      } as Registration & { transactionId: string };
 
-      const regId = await actor.submitRegistration(reg);
+      let regId: bigint;
+      try {
+        regId = await actor.submitRegistration(reg as Registration);
+      } catch (err) {
+        const errMsg = String(err);
+        if (errMsg.includes("DUPLICATE_TRANSACTION_ID")) {
+          setDupTxnDialogOpen(true);
+          setIsSubmitting(false);
+          return;
+        }
+        throw err;
+      }
 
       // Create Stripe checkout
       const successUrl = `${window.location.origin}/payment-success?session_id={CHECKOUT_SESSION_ID}&reg_id=${regId.toString()}`;
@@ -190,10 +234,55 @@ export default function GameRegisterPage() {
     );
   }
 
+  const bgVideoSrc =
+    localStorage.getItem(`cvr_bgvideo_game_${game.id.toString()}`) || "";
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative">
+      {/* Background Video */}
+      {bgVideoSrc && (
+        <video
+          key={bgVideoSrc}
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="fixed inset-0 w-full h-full object-cover z-0 opacity-40"
+          src={bgVideoSrc}
+        />
+      )}
+      {bgVideoSrc && (
+        <div className="fixed inset-0 z-[1] bg-background/60 backdrop-blur-[1px]" />
+      )}
+      {/* Duplicate Transaction ID Dialog */}
+      <Dialog open={dupTxnDialogOpen} onOpenChange={setDupTxnDialogOpen}>
+        <DialogContent
+          className="bg-steel-dark border border-destructive/60 max-w-sm mx-4"
+          data-ocid="register.dialog"
+        >
+          <DialogHeader>
+            <DialogTitle className="font-display text-destructive text-base tracking-wider">
+              ⚠ INVALID TRANSACTION ID
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground text-sm leading-relaxed pt-1">
+              This transaction ID has already been used by another player.
+              Please check your payment and enter the correct transaction ID.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="pt-2">
+            <Button
+              className="btn-primary w-full"
+              onClick={() => setDupTxnDialogOpen(false)}
+              data-ocid="register.confirm_button"
+            >
+              OK
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-steel-dark/95 backdrop-blur border-b border-border/50">
+      <header className="sticky top-0 z-[60] bg-steel-dark/95 backdrop-blur border-b border-border/50">
         <div className="max-w-[430px] mx-auto px-4 h-14 flex items-center gap-3">
           <button
             type="button"
@@ -212,7 +301,7 @@ export default function GameRegisterPage() {
         </div>
       </header>
 
-      <div className="max-w-[430px] mx-auto pb-8">
+      <div className="max-w-[430px] mx-auto pb-8 relative z-[2]">
         {/* Game Banner */}
         <div className={`relative h-40 bg-gradient-to-br ${gradientClass}`}>
           {game.bannerUrl &&
@@ -450,6 +539,25 @@ export default function GameRegisterPage() {
                   </span>
                 </div>
               </div>
+
+              {/* Transaction ID field */}
+              <div className="space-y-1.5 mb-4">
+                <Label className="font-display text-xs text-muted-foreground">
+                  TRANSACTION ID *
+                </Label>
+                <Input
+                  value={transactionId}
+                  onChange={(e) => setTransactionId(e.target.value)}
+                  placeholder="Enter your UPI/payment transaction ID"
+                  required
+                  className="bg-card border-border focus:border-orange-glow text-sm"
+                  data-ocid="register.input"
+                />
+                <p className="text-[10px] text-muted-foreground/70">
+                  Enter the transaction ID from your UPI payment screenshot
+                </p>
+              </div>
+
               <Button
                 type="submit"
                 className="btn-primary w-full h-12 text-base glow-orange"

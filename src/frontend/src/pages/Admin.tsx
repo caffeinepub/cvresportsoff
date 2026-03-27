@@ -45,6 +45,7 @@ import {
   Trash2,
   Trophy,
   Users,
+  Video,
   X,
   Zap,
 } from "lucide-react";
@@ -313,7 +314,7 @@ function GameEditDialog({
       toast.error("Title is required");
       return;
     }
-    onSave({ id: form.id ?? BigInt(0), ...form });
+    onSave({ ...form, id: form.id ?? BigInt(0) } as GameTile);
   };
 
   return (
@@ -464,6 +465,79 @@ function GameEditDialog({
               >
                 <ImagePlus className="w-4 h-4 mr-2" />
                 {form.bannerUrl ? "CHANGE BANNER" : "UPLOAD BANNER"}
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="font-display text-xs text-muted-foreground">
+              BACKGROUND VIDEO (optional, unique per game)
+            </Label>
+            <div className="space-y-2">
+              {(() => {
+                const gameId = form.id?.toString() ?? "new";
+                const storedVideo = localStorage.getItem(
+                  `cvr_bgvideo_game_${gameId}`,
+                );
+                return storedVideo ? (
+                  <div className="relative">
+                    <video
+                      src={storedVideo}
+                      className="w-full h-24 object-cover rounded border border-border"
+                      muted
+                      playsInline
+                      preload="metadata"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-1 right-1 w-6 h-6"
+                      onClick={() => {
+                        localStorage.removeItem(`cvr_bgvideo_game_${gameId}`);
+                        // Force re-render
+                        updateField("title", form.title);
+                      }}
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ) : null;
+              })()}
+              <input
+                type="file"
+                accept="video/*"
+                className="hidden"
+                id="bgvideo-upload-input"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const gameId = form.id?.toString() ?? "new";
+                  const reader = new FileReader();
+                  reader.onload = (ev) => {
+                    const base64 = ev.target?.result as string;
+                    localStorage.setItem(`cvr_bgvideo_game_${gameId}`, base64);
+                    // Force re-render
+                    updateField("title", form.title);
+                  };
+                  reader.readAsDataURL(file);
+                  e.target.value = "";
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full text-xs border-dashed"
+                onClick={() =>
+                  document.getElementById("bgvideo-upload-input")?.click()
+                }
+              >
+                <Video className="w-4 h-4 mr-2" />
+                {localStorage.getItem(
+                  `cvr_bgvideo_game_${form.id?.toString() ?? "new"}`,
+                )
+                  ? "CHANGE BG VIDEO"
+                  : "UPLOAD BG VIDEO"}
               </Button>
             </div>
           </div>
@@ -794,7 +868,7 @@ export default function AdminPage() {
 
   const handleSaveGame = async (game: GameTile) => {
     try {
-      if (game.id === BigInt(0)) {
+      if (!game.id || game.id === BigInt(0)) {
         await createGame.mutateAsync(game);
         toast.success("Game created!");
       } else {
