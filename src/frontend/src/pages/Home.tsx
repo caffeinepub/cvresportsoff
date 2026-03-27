@@ -240,11 +240,11 @@ function FloatingBattlefieldElements() {
 
   useEffect(() => {
     const handler = (e: DeviceOrientationEvent) => {
-      const rawX = (e.gamma ?? 0) * 0.3;
-      const rawY = (e.beta ?? 0) * 0.15;
+      const rawX = (e.gamma ?? 0) * 0.5;
+      const rawY = (e.beta ?? 0) * 0.25;
       setTilt({
-        x: Math.max(-20, Math.min(20, rawX)),
-        y: Math.max(-20, Math.min(20, rawY)),
+        x: Math.max(-30, Math.min(30, rawX)),
+        y: Math.max(-30, Math.min(30, rawY)),
       });
     };
     window.addEventListener("deviceorientation", handler, { passive: true });
@@ -253,7 +253,8 @@ function FloatingBattlefieldElements() {
 
   return (
     <div className="floating-elements-layer" aria-hidden="true">
-      {FLOAT_ELEMENTS.map((el) => {
+      {FLOAT_ELEMENTS.map((el, index) => {
+        const depth = 0.5 + index * 0.15;
         const posStyle: React.CSSProperties = {
           position: "absolute",
           top: el.top,
@@ -263,6 +264,8 @@ function FloatingBattlefieldElements() {
           height: el.size,
           pointerEvents: "none",
           zIndex: 1,
+          transform: `translate(${tilt.x * depth}px, ${tilt.y * depth}px)`,
+          transition: "transform 0.15s ease-out",
         };
         if ("left" in el && el.left !== undefined) posStyle.left = el.left;
         if ("right" in el && el.right !== undefined) posStyle.right = el.right;
@@ -300,7 +303,7 @@ function FloatingBattlefieldElements() {
             style={{
               ...posStyle,
               transform: `translate(${tilt.x * depth}px, ${tilt.y * depth}px)`,
-              transition: "transform 0.1s linear",
+              transition: "transform 0.15s ease-out",
             }}
           />
         );
