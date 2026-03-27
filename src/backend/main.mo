@@ -86,6 +86,14 @@ actor {
     name : Text;
   };
 
+  public type Sponsor = {
+    id : Nat;
+    name : Text;
+    mediaUrl : Text;
+    mediaType : Text;
+  };
+
+
   // Authorization
   let accessControlState = Authorization.initState();
   include MixinAuthorization(accessControlState);
@@ -101,6 +109,8 @@ actor {
   // Transaction ID dedup map
   let usedTransactionIds = Map.empty<Text, Nat>();
   let globalQuestions = Map.empty<Nat, Question>();
+  let sponsors = Map.empty<Nat, Sponsor>();
+  var nextSponsorId = 0;
   let userProfiles = Map.empty<Principal, UserProfile>();
   var stripeConfig : ?Stripe.StripeConfiguration = null;
   var migrationDone = false;
@@ -313,4 +323,31 @@ actor {
   public query func transform(input : OutCall.TransformationInput) : async OutCall.TransformationOutput {
     OutCall.transform(input);
   };
+
+  // Sponsor Management
+  public shared func addSponsor(name : Text, mediaUrl : Text, mediaType : Text) : async Nat {
+    let sponsor : Sponsor = {
+      id = nextSponsorId;
+      name = name;
+      mediaUrl = mediaUrl;
+      mediaType = mediaType;
+    };
+    sponsors.add(nextSponsorId, sponsor);
+    nextSponsorId += 1;
+    sponsor.id;
+  };
+
+  public shared func deleteSponsor(id : Nat) : async Bool {
+    if (sponsors.containsKey(id)) {
+      sponsors.remove(id);
+      true;
+    } else {
+      false;
+    };
+  };
+
+  public query func getSponsors() : async [Sponsor] {
+    sponsors.values().toArray();
+  };
+
 };

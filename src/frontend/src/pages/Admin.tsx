@@ -54,7 +54,7 @@ import { motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { GameTile, Question } from "../backend";
-import { loadConfig } from "../config";
+import { createActorWithConfig, loadConfig } from "../config";
 import { useActor } from "../hooks/useActor";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import {
@@ -264,31 +264,18 @@ function GameEditDialog({
     loadVideo(`cvr_bgvideo_game_${gameId}`).then(setBgVideoUrl);
   }, [form.id]);
 
-  const parseQText = (
-    raw: string,
-  ): { text: string; imageUrl?: string; imageRef?: string } => {
+  const parseQText = (raw: string): { text: string; imageUrl?: string } => {
     try {
       const p = JSON.parse(raw);
       if (typeof p.text === "string") {
-        if (p.imageRef) {
-          const storedImg = localStorage.getItem(`cvr_qimg_${p.imageRef}`);
-          return {
-            text: p.text,
-            imageUrl: storedImg || undefined,
-            imageRef: p.imageRef,
-          };
-        }
-        if (p.imageUrl) {
-          return { text: p.text, imageUrl: p.imageUrl };
-        }
-        return { text: p.text };
+        return { text: p.text, imageUrl: p.imageUrl || undefined };
       }
     } catch {}
     return { text: raw };
   };
 
-  const encodeQText = (text: string, imageRef?: string): string =>
-    imageRef ? JSON.stringify({ text, imageRef }) : text;
+  const encodeQText = (text: string, imageUrl?: string): string =>
+    imageUrl ? JSON.stringify({ text, imageUrl }) : text;
 
   const updateField = <K extends keyof typeof form>(
     key: K,
@@ -604,7 +591,7 @@ function GameEditDialog({
                               updateQuestion(
                                 idx,
                                 "questionText",
-                                encodeQText(e.target.value, parsed.imageRef),
+                                encodeQText(e.target.value, parsed.imageUrl),
                               )
                             }
                             placeholder="Question text"
@@ -631,11 +618,6 @@ function GameEditDialog({
                               type="button"
                               className="absolute -top-1.5 -right-1.5 bg-destructive rounded-full w-4 h-4 flex items-center justify-center text-white"
                               onClick={() => {
-                                if (parsed.imageRef) {
-                                  localStorage.removeItem(
-                                    `cvr_qimg_${parsed.imageRef}`,
-                                  );
-                                }
                                 updateQuestion(
                                   idx,
                                   "questionText",
@@ -654,29 +636,49 @@ function GameEditDialog({
                               type="file"
                               accept="image/*"
                               className="hidden"
-                              onChange={(e) => {
+                              onChange={async (e) => {
                                 const file = e.target.files?.[0];
                                 if (!file) return;
                                 if (file.size > 2 * 1024 * 1024) {
                                   toast.error("Max 2 MB");
                                   return;
                                 }
-                                const reader = new FileReader();
-                                reader.onload = () => {
-                                  const base64 = reader.result as string;
-                                  const key = String(Date.now());
-                                  localStorage.setItem(
-                                    `cvr_qimg_${key}`,
-                                    base64,
+                                e.target.value = "";
+                                try {
+                                  const arrayBuffer = await file.arrayBuffer();
+                                  const bytes = new Uint8Array(arrayBuffer);
+                                  const config = await loadConfig();
+                                  const agent = new HttpAgent({
+                                    host: config.backend_host,
+                                  });
+                                  if (
+                                    config.backend_host?.includes("localhost")
+                                  ) {
+                                    await agent.fetchRootKey().catch(() => {});
+                                  }
+                                  const client = new StorageClient(
+                                    config.bucket_name,
+                                    config.storage_gateway_url,
+                                    config.backend_canister_id,
+                                    config.project_id,
+                                    agent,
                                   );
+                                  const { hash } = await client.putFile(bytes);
+                                  const url = await client.getDirectURL(hash);
                                   updateQuestion(
                                     idx,
                                     "questionText",
-                                    encodeQText(parsed.text, key),
+                                    encodeQText(parsed.text, url),
                                   );
-                                };
-                                reader.readAsDataURL(file);
-                                e.target.value = "";
+                                } catch (err) {
+                                  console.error(
+                                    "Question image upload failed:",
+                                    err,
+                                  );
+                                  toast.error(
+                                    "Image upload failed. Try again.",
+                                  );
+                                }
                               }}
                             />
                           </label>
@@ -751,6 +753,67 @@ interface StoredBgElement {
   id: string;
   dataUrl: string;
   name: string;
+}
+
+interface StoredSponsor {
+  id: string;
+  name: string;
+  mediaUrl: string;
+  mediaType: "image" | "video";
+}
+
+function useSponsors() {
+  const [sponsors, setSponsors] = useState<StoredSponsor[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchSponsors = async () => {
+    try {
+      const actor = await createActorWithConfig();
+      const list = await (actor as any).getSponsors();
+      setSponsors(
+        list.map((s) => ({
+          id: s.id.toString(),
+          name: s.name,
+          mediaUrl: s.mediaUrl,
+          mediaType: s.mediaType as "image" | "video",
+        })),
+      );
+    } catch (err) {
+      console.error("Failed to load sponsors:", err);
+    }
+  };
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fetch on mount only
+  useEffect(() => {
+    fetchSponsors();
+  }, []);
+
+  const add = async (s: StoredSponsor) => {
+    setLoading(true);
+    try {
+      const actor = await createActorWithConfig();
+      await (actor as any).addSponsor(s.name, s.mediaUrl, s.mediaType);
+      await fetchSponsors();
+    } catch (err) {
+      console.error("Failed to add sponsor:", err);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const remove = async (id: string) => {
+    try {
+      const actor = await createActorWithConfig();
+      await (actor as any).deleteSponsor(BigInt(id));
+      await fetchSponsors();
+    } catch (err) {
+      console.error("Failed to remove sponsor:", err);
+      throw err;
+    }
+  };
+
+  return { sponsors, add, remove, loading };
 }
 
 function useBgElements() {
@@ -905,6 +968,10 @@ export default function AdminPage() {
     save: saveBgElements,
   } = useBgElements();
   const bgFileRef = useRef<HTMLInputElement>(null);
+  const sponsorFileRef = useRef<HTMLInputElement>(null);
+  const { sponsors, add: addSponsor, remove: removeSponsor } = useSponsors();
+  const [sponsorName, setSponsorName] = useState("");
+  const [sponsorUploading, setSponsorUploading] = useState(false);
 
   const handleSaveGame = async (game: GameTile, isNew = false) => {
     if (!actor) {
@@ -1719,6 +1786,147 @@ export default function AdminPage() {
                 )}
                 SAVE STRIPE CONFIG
               </Button>
+            </div>
+
+            {/* Sponsors */}
+            <div className="bg-card border border-border rounded-lg p-4 space-y-4 mb-4">
+              <h4 className="font-display text-sm text-foreground">SPONSORS</h4>
+              <p className="text-muted-foreground text-xs">
+                Add sponsor images or videos. They appear as an Instagram-style
+                slideshow on the homepage, below the tournaments section.
+              </p>
+
+              <div className="space-y-1.5">
+                <Label className="font-display text-xs text-muted-foreground">
+                  SPONSOR NAME (optional)
+                </Label>
+                <Input
+                  value={sponsorName}
+                  onChange={(e) => setSponsorName(e.target.value)}
+                  placeholder="e.g. Red Bull, Logitech"
+                  className="bg-secondary border-border text-sm"
+                  data-ocid="sponsors.input"
+                />
+              </div>
+
+              <input
+                ref={sponsorFileRef}
+                type="file"
+                accept="image/*,video/*"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  e.target.value = "";
+                  setSponsorUploading(true);
+                  try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const bytes = new Uint8Array(arrayBuffer);
+                    const config = await loadConfig();
+                    const agent = new HttpAgent({ host: config.backend_host });
+                    if (config.backend_host?.includes("localhost")) {
+                      await agent.fetchRootKey().catch(() => {});
+                    }
+                    const client = new StorageClient(
+                      config.bucket_name,
+                      config.storage_gateway_url,
+                      config.backend_canister_id,
+                      config.project_id,
+                      agent,
+                    );
+                    const { hash } = await client.putFile(bytes);
+                    const url = await client.getDirectURL(hash);
+                    const mediaType = file.type.startsWith("video/")
+                      ? "video"
+                      : "image";
+                    await addSponsor({
+                      id: `sponsor_${Date.now()}`,
+                      name: sponsorName.trim(),
+                      mediaUrl: url,
+                      mediaType: mediaType as "image" | "video",
+                    });
+                    setSponsorName("");
+                    toast.success("Sponsor added!");
+                  } catch (_err) {
+                    console.error("Sponsor upload error:", _err);
+                    toast.error("Upload failed. Please try again.");
+                  } finally {
+                    setSponsorUploading(false);
+                  }
+                }}
+                data-ocid="sponsors.upload_button"
+              />
+              <Button
+                variant="outline"
+                className="btn-outline-orange w-full text-xs"
+                disabled={sponsorUploading}
+                onClick={() => sponsorFileRef.current?.click()}
+                data-ocid="sponsors.upload_button"
+              >
+                {sponsorUploading ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <ImagePlus className="w-4 h-4 mr-2" />
+                )}
+                {sponsorUploading
+                  ? "UPLOADING..."
+                  : "ADD SPONSOR (IMAGE / VIDEO)"}
+              </Button>
+
+              {sponsors.length === 0 ? (
+                <p
+                  className="text-muted-foreground text-xs text-center py-2"
+                  data-ocid="sponsors.empty_state"
+                >
+                  No sponsors added yet.
+                </p>
+              ) : (
+                <div className="space-y-2" data-ocid="sponsors.list">
+                  {sponsors.map((s, i) => (
+                    <div
+                      key={s.id}
+                      className="flex items-center gap-3 bg-secondary rounded-lg px-3 py-2"
+                      data-ocid={`sponsors.item.${i + 1}`}
+                    >
+                      {s.mediaType === "video" ? (
+                        <video
+                          src={s.mediaUrl}
+                          muted
+                          className="w-12 h-8 object-cover rounded flex-shrink-0"
+                        />
+                      ) : (
+                        <img
+                          src={s.mediaUrl}
+                          alt={s.name}
+                          className="w-12 h-8 object-cover rounded flex-shrink-0"
+                        />
+                      )}
+                      <span className="text-xs text-muted-foreground flex-1 truncate">
+                        {s.name || "(no name)"}
+                      </span>
+                      <span className="text-xs text-muted-foreground/60 capitalize mr-1">
+                        {s.mediaType}
+                      </span>
+                      <button
+                        type="button"
+                        className="text-muted-foreground hover:text-destructive transition-colors"
+                        onClick={async () => {
+                          try {
+                            await removeSponsor(s.id);
+                            toast.success("Sponsor removed");
+                          } catch {
+                            toast.error("Failed to remove sponsor");
+                          }
+                        }}
+                        aria-label={`Remove ${s.name}`}
+                        data-ocid={`sponsors.delete_button.${i + 1}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Background Elements */}

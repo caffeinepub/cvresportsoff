@@ -65,6 +65,7 @@ export interface TransformationOutput {
   'body' : Uint8Array,
   'headers' : Array<http_header>,
 }
+export interface Sponsor { 'id' : bigint, 'name' : string, 'mediaUrl' : string, 'mediaType' : string }
 export interface UserProfile { 'name' : string }
 export type UserRole = { 'admin' : null } |
   { 'user' : null } |
@@ -107,6 +108,9 @@ export interface _SERVICE {
   'transform' : ActorMethod<[TransformationInput], TransformationOutput>,
   'updateGame' : ActorMethod<[GameTile], undefined>,
   'updatePaymentStatus' : ActorMethod<[bigint, string], undefined>,
+  'addSponsor' : ActorMethod<[string, string, string], bigint>,
+  'deleteSponsor' : ActorMethod<[bigint], boolean>,
+  'getSponsors' : ActorMethod<[], Array<Sponsor>>,
   'updateQuestion' : ActorMethod<[Question], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;
