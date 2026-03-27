@@ -244,6 +244,17 @@ function GameEditDialog({
     game,
   );
 
+  const parseQText = (raw: string): { text: string; imageUrl?: string } => {
+    try {
+      const p = JSON.parse(raw);
+      if (typeof p.text === "string") return p;
+    } catch {}
+    return { text: raw };
+  };
+
+  const encodeQText = (text: string, imageUrl?: string): string =>
+    imageUrl ? JSON.stringify({ text, imageUrl }) : text;
+
   const updateField = <K extends keyof typeof form>(
     key: K,
     value: (typeof form)[K],
@@ -420,24 +431,90 @@ function GameEditDialog({
                   className="bg-secondary rounded-lg p-2 space-y-2"
                   data-ocid={`game_edit.item.${idx + 1}`}
                 >
-                  <div className="flex gap-2">
-                    <Input
-                      value={q.questionText}
-                      onChange={(e) =>
-                        updateQuestion(idx, "questionText", e.target.value)
-                      }
-                      placeholder="Question text"
-                      className="bg-card border-border text-xs flex-1"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeQuestion(idx)}
-                      className="text-muted-foreground hover:text-destructive"
-                      data-ocid={`game_edit.delete_button.${idx + 1}`}
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
+                  {/* Question text + optional image */}
+                  {(() => {
+                    const parsed = parseQText(q.questionText);
+                    return (
+                      <div className="space-y-2">
+                        <div className="flex gap-2">
+                          <Input
+                            value={parsed.text}
+                            onChange={(e) =>
+                              updateQuestion(
+                                idx,
+                                "questionText",
+                                encodeQText(e.target.value, parsed.imageUrl),
+                              )
+                            }
+                            placeholder="Question text"
+                            className="bg-card border-border text-xs flex-1"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeQuestion(idx)}
+                            className="text-muted-foreground hover:text-destructive"
+                            data-ocid={`game_edit.delete_button.${idx + 1}`}
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                        {/* Question image preview + upload/remove */}
+                        {parsed.imageUrl ? (
+                          <div className="relative inline-block">
+                            <img
+                              src={parsed.imageUrl}
+                              alt="Question context"
+                              className="h-20 rounded object-contain border border-border/50"
+                            />
+                            <button
+                              type="button"
+                              className="absolute -top-1.5 -right-1.5 bg-destructive rounded-full w-4 h-4 flex items-center justify-center text-white"
+                              onClick={() =>
+                                updateQuestion(
+                                  idx,
+                                  "questionText",
+                                  encodeQText(parsed.text, undefined),
+                                )
+                              }
+                            >
+                              <X className="w-2.5 h-2.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground hover:text-orange-glow text-xs w-fit">
+                            <ImagePlus className="w-3.5 h-3.5" />
+                            <span>Add photo to question</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                if (file.size > 2 * 1024 * 1024) {
+                                  toast.error("Max 2 MB");
+                                  return;
+                                }
+                                const reader = new FileReader();
+                                reader.onload = () => {
+                                  updateQuestion(
+                                    idx,
+                                    "questionText",
+                                    encodeQText(
+                                      parsed.text,
+                                      reader.result as string,
+                                    ),
+                                  );
+                                };
+                                reader.readAsDataURL(file);
+                                e.target.value = "";
+                              }}
+                            />
+                          </label>
+                        )}
+                      </div>
+                    );
+                  })()}
                   <div className="flex gap-2 items-center">
                     <Select
                       value={q.fieldType}
@@ -449,6 +526,9 @@ function GameEditDialog({
                       <SelectContent className="bg-card border-border">
                         <SelectItem value="text">Text</SelectItem>
                         <SelectItem value="number">Number</SelectItem>
+                        <SelectItem value="photo">
+                          Photo (user uploads image)
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                     <div className="flex items-center gap-1.5">

@@ -3,7 +3,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { ArrowLeft, CheckCircle, Flame, Loader2, Shield } from "lucide-react";
+import {
+  ArrowLeft,
+  Camera,
+  CheckCircle,
+  Flame,
+  Loader2,
+  Shield,
+} from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -19,6 +26,14 @@ const GAME_GRADIENTS = [
   "from-yellow-900 via-orange-950 to-black",
   "from-cyan-900 via-blue-950 to-black",
 ];
+
+const parseQText = (raw: string): { text: string; imageUrl?: string } => {
+  try {
+    const p = JSON.parse(raw);
+    if (typeof p.text === "string") return p;
+  } catch {}
+  return { text: raw };
+};
 
 export default function GameRegisterPage() {
   const params = useParams({ from: "/game/$id" });
@@ -312,26 +327,100 @@ export default function GameRegisterPage() {
             </div>
 
             {/* Custom questions */}
-            {game.questions.map((q) => (
-              <div key={q.id.toString()} className="space-y-1.5">
-                <Label className="font-display text-xs text-muted-foreground">
-                  {q.questionText.toUpperCase()} {q.required && "*"}
-                </Label>
-                <Input
-                  type={q.fieldType === "number" ? "number" : "text"}
-                  value={answers[q.id.toString()] || ""}
-                  onChange={(e) =>
-                    setAnswers((prev) => ({
-                      ...prev,
-                      [q.id.toString()]: e.target.value,
-                    }))
-                  }
-                  required={q.required}
-                  className="bg-card border-border focus:border-orange-glow text-sm"
-                  data-ocid="register.input"
-                />
-              </div>
-            ))}
+            {game.questions.map((q) => {
+              const parsed = parseQText(q.questionText);
+              const isPhoto = q.fieldType === "photo";
+              return (
+                <div key={q.id.toString()} className="space-y-1.5">
+                  <Label className="font-display text-xs text-muted-foreground">
+                    {parsed.text.toUpperCase()} {q.required && "*"}
+                  </Label>
+                  {parsed.imageUrl && (
+                    <img
+                      src={parsed.imageUrl}
+                      alt="Question"
+                      className="w-full max-h-48 object-contain rounded-lg border border-border/50 mb-1"
+                    />
+                  )}
+                  {isPhoto ? (
+                    <div className="space-y-2">
+                      <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border/60 rounded-lg p-4 cursor-pointer hover:border-orange-glow/50 transition-colors bg-card/50">
+                        {answers[q.id.toString()] ? (
+                          <div className="relative w-full">
+                            <img
+                              src={answers[q.id.toString()]}
+                              alt="Your upload"
+                              className="w-full max-h-48 object-contain rounded"
+                            />
+                            <button
+                              type="button"
+                              className="absolute top-1 right-1 bg-destructive text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
+                              onClick={() =>
+                                setAnswers((prev) => ({
+                                  ...prev,
+                                  [q.id.toString()]: "",
+                                }))
+                              }
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <Camera className="w-7 h-7 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground text-center">
+                              Tap to upload photo
+                              <br />
+                              <span className="text-[10px] opacity-60">
+                                JPG / PNG, max 2 MB
+                              </span>
+                            </span>
+                          </>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          required={q.required && !answers[q.id.toString()]}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            if (file.size > 2 * 1024 * 1024) {
+                              toast.error("Max file size is 2 MB");
+                              return;
+                            }
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                              setAnswers((prev) => ({
+                                ...prev,
+                                [q.id.toString()]: reader.result as string,
+                              }));
+                            };
+                            reader.readAsDataURL(file);
+                            e.target.value = "";
+                          }}
+                          data-ocid="register.upload_button"
+                        />
+                      </label>
+                    </div>
+                  ) : (
+                    <Input
+                      type={q.fieldType === "number" ? "number" : "text"}
+                      value={answers[q.id.toString()] || ""}
+                      onChange={(e) =>
+                        setAnswers((prev) => ({
+                          ...prev,
+                          [q.id.toString()]: e.target.value,
+                        }))
+                      }
+                      required={q.required}
+                      className="bg-card border-border focus:border-orange-glow text-sm"
+                      data-ocid="register.input"
+                    />
+                  )}
+                </div>
+              );
+            })}
 
             <div className="pt-2 pb-4">
               <div className="bg-card border border-border/50 rounded-lg p-3 mb-4">
