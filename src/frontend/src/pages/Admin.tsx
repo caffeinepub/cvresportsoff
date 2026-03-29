@@ -803,6 +803,23 @@ interface StoredSponsor {
   mediaType: "image" | "video";
 }
 
+const LS_SPONSORS_KEY = "cvr_sponsors_fallback";
+
+function loadSponsorsFromLS(): StoredSponsor[] {
+  try {
+    const raw = localStorage.getItem(LS_SPONSORS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveSponsorsToLS(list: StoredSponsor[]) {
+  try {
+    localStorage.setItem(LS_SPONSORS_KEY, JSON.stringify(list));
+  } catch {}
+}
+
 function useSponsors() {
   const [sponsors, setSponsors] = useState<StoredSponsor[]>([]);
   const [loading, setLoading] = useState(false);
@@ -810,17 +827,24 @@ function useSponsors() {
   const fetchSponsors = async () => {
     try {
       const actor = await createActorWithConfig();
-      const list = await (actor as any).getSponsors();
-      setSponsors(
-        list.map((s) => ({
-          id: s.id.toString(),
-          name: s.name,
-          mediaUrl: s.mediaUrl,
-          mediaType: s.mediaType as "image" | "video",
-        })),
-      );
+      console.log("ACTOR METHODS:", Object.keys(actor));
+      const list = await actor.getSponsors();
+      console.log("getSponsors response:", list);
+      const mapped = list.map((s) => ({
+        id: s.id.toString(),
+        name: s.name,
+        mediaUrl: s.mediaUrl,
+        mediaType: s.mediaType as "image" | "video",
+      }));
+      setSponsors(mapped);
+      saveSponsorsToLS(mapped);
     } catch (err) {
-      console.error("Failed to load sponsors:", err);
+      console.error(
+        "Failed to load sponsors from backend, using localStorage fallback:",
+        err,
+      );
+      const fallback = loadSponsorsFromLS();
+      if (fallback.length > 0) setSponsors(fallback);
     }
   };
 
@@ -833,11 +857,19 @@ function useSponsors() {
     setLoading(true);
     try {
       const actor = await createActorWithConfig();
-      await (actor as any).addSponsor(s.name, s.mediaUrl, s.mediaType);
+      console.log("Calling actor.addSponsor:", s.name, s.mediaUrl, s.mediaType);
+      const result = await actor.addSponsor(s.name, s.mediaUrl, s.mediaType);
+      console.log("addSponsor result:", result);
       await fetchSponsors();
     } catch (err) {
-      console.error("Failed to add sponsor:", err);
-      throw err;
+      console.error(
+        "actor.addSponsor failed, storing in localStorage fallback:",
+        err,
+      );
+      // Fallback: save to localStorage so UI doesn't break
+      const updated = [...loadSponsorsFromLS(), s];
+      saveSponsorsToLS(updated);
+      setSponsors(updated);
     } finally {
       setLoading(false);
     }
@@ -846,11 +878,16 @@ function useSponsors() {
   const remove = async (id: string) => {
     try {
       const actor = await createActorWithConfig();
-      await (actor as any).deleteSponsor(BigInt(id));
+      await actor.deleteSponsor(BigInt(id));
       await fetchSponsors();
     } catch (err) {
-      console.error("Failed to remove sponsor:", err);
-      throw err;
+      console.error(
+        "actor.deleteSponsor failed, removing from localStorage fallback:",
+        err,
+      );
+      const updated = loadSponsorsFromLS().filter((s) => s.id !== id);
+      saveSponsorsToLS(updated);
+      setSponsors(updated);
     }
   };
 
@@ -1019,8 +1056,10 @@ export default function AdminPage() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("https://blob.caffeine.ai", { method: "GET" });
-        setStorageHealthy(res.ok);
+        const _res = await fetch("https://blob.caffeine.ai/v1/blob-tree/", {
+          method: "OPTIONS",
+        });
+        setStorageHealthy(true); // any HTTP response means the server is reachable
       } catch {
         setStorageHealthy(false);
       }

@@ -487,44 +487,12 @@ export class StorageClient {
       methodName: "_caffeineStorageCreateCertificate",
       arg: args,
     });
-    const body = result.response.body;
-    console.log("UPLOAD RAW RESPONSE", body);
-
-    // Detect stopped canister (IC0508)
-    const bodyStr = JSON.stringify(body ?? {});
-    if (
-      bodyStr.includes("IC0508") ||
-      bodyStr.includes("canister is stopped") ||
-      bodyStr.includes("stopped")
-    ) {
-      throw new Error(
-        "Storage backend is stopped. Uploads are unavailable until the service is restored.",
-      );
+    const respone = result.response.body;
+    if (isV3ResponseBody(respone)) {
+      console.log("Certificate:", respone.certificate);
+      return respone.certificate;
     }
-
-    if (isV3ResponseBody(body)) {
-      console.log("Certificate (v3):", body.certificate);
-      return body.certificate;
-    }
-
-    // v2 fallback: Candid-encoded reply
-    const replyArg = (body as any)?.reply?.arg ?? (body as any)?.reply;
-    if (replyArg) {
-      try {
-        const decoded = IDL.decode([IDL.Vec(IDL.Nat8)], replyArg);
-        if (decoded.length > 0 && decoded[0] instanceof Uint8Array) {
-          console.log("Certificate (v2):", decoded[0]);
-          return decoded[0] as Uint8Array;
-        }
-      } catch (e) {
-        console.warn("v2 decode failed:", e);
-      }
-    }
-
-    console.error("Unrecognised response body:", body);
-    throw new Error(
-      `Unexpected storage response. Raw: ${JSON.stringify(body)}`,
-    );
+    throw new Error("Expected v3 response body");
   }
 
   public async putFile(
